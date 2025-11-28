@@ -788,23 +788,60 @@
             const port = el.robotPort.value || '9090';
             localStorage.setItem('robotIP', ip);
 
+            el.statusText.textContent = 'Connecting...';
+            el.connectBtn.disabled = true;
+
             try {
                 ros = new ROSLIB.Ros({ url: `ws://${ip}:${port}` });
+
                 ros.on('connection', () => {
+                    console.log('[ROS] Connected to ws://' + ip + ':' + port);
                     connected = true;
                     updateStatus(true);
                     setupCmdVel();
-                    refreshTopics();
+                    setTimeout(refreshTopics, 500);
                 });
-                ros.on('error', e => console.error('ROS:', e));
-                ros.on('close', () => { connected = false; updateStatus(false); });
-            } catch(e) { console.error(e); }
+
+                ros.on('error', (e) => {
+                    console.error('[ROS] Error:', e);
+                    el.statusText.textContent = 'Connection error';
+                    el.connectBtn.disabled = false;
+                });
+
+                ros.on('close', () => {
+                    console.log('[ROS] Connection closed');
+                    connected = false;
+                    cmdVelPub = null;
+                    updateStatus(false);
+                });
+
+                // Connection timeout
+                setTimeout(() => {
+                    if (!connected && ros) {
+                        console.warn('[ROS] Connection timeout');
+                        el.statusText.textContent = 'Timeout';
+                        el.connectBtn.disabled = false;
+                        try { ros.close(); } catch(e) {}
+                        ros = null;
+                    }
+                }, 5000);
+
+            } catch(e) {
+                console.error('[ROS] Failed:', e);
+                el.statusText.textContent = 'Failed';
+                el.connectBtn.disabled = false;
+            }
         }
 
         function disconnect() {
+            sendVel(0, 0); // Stop robot before disconnect
             stopCamera();
             stopLidar();
-            if (ros) { ros.close(); ros = null; }
+            if (ros) {
+                try { ros.close(); } catch(e) {}
+                ros = null;
+            }
+            cmdVelPub = null;
             connected = false;
             updateStatus(false);
         }
@@ -814,33 +851,48 @@
             el.statusText.textContent = on ? 'Connected' : 'Disconnected';
             el.connectBtn.textContent = on ? 'Disconnect' : 'Connect';
             el.connectBtn.classList.toggle('btn-danger', on);
+            el.connectBtn.disabled = false;
         }
 
-        // cmd_vel
+        // cmd_vel Publisher
         function setupCmdVel() {
-            cmdVelPub = new ROSLIB.Topic({
-                ros, name: '/cmd_vel', messageType: 'geometry_msgs/Twist'
-            });
+            try {
+                cmdVelPub = new ROSLIB.Topic({
+                    ros: ros,
+                    name: '/cmd_vel',
+                    messageType: 'geometry_msgs/Twist'
+                });
+                console.log('[ROS] cmd_vel publisher ready');
+            } catch(e) {
+                console.error('[ROS] Failed to create cmd_vel publisher:', e);
+                cmdVelPub = null;
+            }
         }
 
         function sendVel(lin, ang) {
-            if (!connected || !cmdVelPub) return;
+            // Update UI even if not connected
+            el.linearVel.textContent = lin.toFixed(2);
+            el.angularVel.textContent = ang.toFixed(2);
+            const wb = 0.14;
+            updateMotor('L', lin - ang * wb / 2);
+            updateMotor('R', lin + ang * wb / 2);
+
+            // Send to ROS
+            if (!connected || !cmdVelPub || !ros) return;
+
             const now = Date.now();
             if (now - lastCmdTime < CMD_RATE) return;
             lastCmdTime = now;
 
-            cmdVelPub.publish(new ROSLIB.Message({
-                linear: { x: lin, y: 0, z: 0 },
-                angular: { x: 0, y: 0, z: ang }
-            }));
-
-            el.linearVel.textContent = lin.toFixed(2);
-            el.angularVel.textContent = ang.toFixed(2);
-
-            // Differential drive estimate
-            const wb = 0.14;
-            updateMotor('L', lin - ang * wb / 2);
-            updateMotor('R', lin + ang * wb / 2);
+            try {
+                const msg = new ROSLIB.Message({
+                    linear: { x: parseFloat(lin) || 0, y: 0.0, z: 0.0 },
+                    angular: { x: 0.0, y: 0.0, z: parseFloat(ang) || 0 }
+                });
+                cmdVelPub.publish(msg);
+            } catch(e) {
+                console.error('[ROS] Failed to publish cmd_vel:', e);
+            }
         }
 
         function updateMotor(side, spd) {
@@ -1009,26 +1061,45 @@
                 };
             } else {
                 // rosbridge
-                if (!connected) return;
-                const isComp = topic.includes('compressed');
-                cameraSub = new ROSLIB.Topic({
-                    ros, name: topic,
-                    messageType: isComp ? 'sensor_msgs/CompressedImage' : 'sensor_msgs/Image',
-                    throttle_rate: 66 // ~15fps - prioritize low latency over high fps
-                });
+                if (!connected || !ros) {
+                    console.warn('[Camera] Not connected');
+                    return;
+                }
 
-                cameraSub.subscribe(msg => {
-                    cameraFrames++;
-                    el.cameraPlaceholder.style.display = 'none';
-                    el.cameraImage.style.display = 'block';
-                    el.cameraImage.src = `data:image/${msg.format || 'jpeg'};base64,${msg.data}`;
-                });
-                el.cameraBtn.textContent = 'Stop';
+                try {
+                    const isComp = topic.includes('compressed');
+                    cameraSub = new ROSLIB.Topic({
+                        ros: ros,
+                        name: topic,
+                        messageType: isComp ? 'sensor_msgs/CompressedImage' : 'sensor_msgs/Image',
+                        throttle_rate: 66
+                    });
+
+                    cameraSub.subscribe(msg => {
+                        try {
+                            cameraFrames++;
+                            el.cameraPlaceholder.style.display = 'none';
+                            el.cameraImage.style.display = 'block';
+                            const format = msg.format || 'jpeg';
+                            el.cameraImage.src = `data:image/${format};base64,${msg.data}`;
+                        } catch(e) {
+                            console.error('[Camera] Frame error:', e);
+                        }
+                    });
+
+                    el.cameraBtn.textContent = 'Stop';
+                    console.log('[Camera] Subscribed to', topic);
+                } catch(e) {
+                    console.error('[Camera] Subscribe error:', e);
+                    cameraSub = null;
+                }
             }
         }
 
         function stopCamera() {
-            if (cameraSub) { cameraSub.unsubscribe(); cameraSub = null; }
+            try {
+                if (cameraSub) { cameraSub.unsubscribe(); cameraSub = null; }
+            } catch(e) { console.warn('[Camera] Unsubscribe error:', e); }
             el.cameraImage.src = '';
             el.cameraImage.style.display = 'none';
             el.cameraPlaceholder.style.display = 'flex';
@@ -1071,45 +1142,73 @@
 
         window.toggleLidar = function() {
             if (lidarSub) { stopLidar(); return; }
-            if (!connected) return;
+            if (!connected || !ros) {
+                console.warn('[LiDAR] Not connected');
+                return;
+            }
 
             const topic = el.lidarTopic.value.trim();
             if (!topic) return;
 
-            lidarSub = new ROSLIB.Topic({
-                ros, name: topic,
-                messageType: 'sensor_msgs/LaserScan',
-                throttle_rate: 100 // ~10fps - sufficient for visualization
-            });
+            try {
+                lidarSub = new ROSLIB.Topic({
+                    ros: ros,
+                    name: topic,
+                    messageType: 'sensor_msgs/LaserScan',
+                    throttle_rate: 100
+                });
 
-            lidarSub.subscribe(scan => {
-                lidarFrames++;
-                drawScan(scan);
-            });
-            el.lidarBtn.textContent = 'Stop';
+                lidarSub.subscribe(scan => {
+                    try {
+                        lidarFrames++;
+                        drawScan(scan);
+                    } catch(e) {
+                        console.error('[LiDAR] Scan error:', e);
+                    }
+                });
+
+                el.lidarBtn.textContent = 'Stop';
+                console.log('[LiDAR] Subscribed to', topic);
+            } catch(e) {
+                console.error('[LiDAR] Subscribe error:', e);
+                lidarSub = null;
+            }
         };
 
         function stopLidar() {
-            if (lidarSub) { lidarSub.unsubscribe(); lidarSub = null; }
+            try {
+                if (lidarSub) { lidarSub.unsubscribe(); lidarSub = null; }
+            } catch(e) { console.warn('[LiDAR] Unsubscribe error:', e); }
             drawLidarBg();
             el.lidarBtn.textContent = 'Start';
         }
 
         function drawScan(scan) {
+            if (!scan || !scan.ranges || !Array.isArray(scan.ranges)) {
+                console.warn('[LiDAR] Invalid scan data');
+                return;
+            }
+
             drawLidarBg();
             const w = el.lidarCanvas.width, h = el.lidarCanvas.height;
             const cx = w/2, cy = h/2;
             const maxR = Math.min(cx,cy) - 5;
-            const scale = maxR / scan.range_max;
+
+            const rangeMax = scan.range_max || 10;
+            const rangeMin = scan.range_min || 0;
+            const angleMin = scan.angle_min || 0;
+            const angleInc = scan.angle_increment || (Math.PI * 2 / scan.ranges.length);
+
+            const scale = maxR / rangeMax;
 
             el.lidarPoints.textContent = scan.ranges.length;
-            el.lidarRange.textContent = `${scan.range_min.toFixed(1)}-${scan.range_max.toFixed(1)}`;
+            el.lidarRange.textContent = `${rangeMin.toFixed(1)}-${rangeMax.toFixed(1)}`;
 
             lidarCtx.fillStyle = '#22c55e';
             for (let i = 0; i < scan.ranges.length; i++) {
                 const r = scan.ranges[i];
-                if (r < scan.range_min || r > scan.range_max || !isFinite(r)) continue;
-                const ang = scan.angle_min + i * scan.angle_increment;
+                if (r < rangeMin || r > rangeMax || !isFinite(r)) continue;
+                const ang = angleMin + i * angleInc;
                 const x = cx + r * scale * Math.sin(-ang);
                 const y = cy - r * scale * Math.cos(ang);
                 lidarCtx.fillRect(x-1, y-1, 2, 2);
@@ -1118,24 +1217,29 @@
 
         // Topics
         window.refreshTopics = function() {
-            if (!connected) return;
-            ros.getTopics(res => {
-                el.topicList.innerHTML = '';
-                res.topics.forEach((t, i) => {
-                    const type = res.types[i];
-                    const chip = document.createElement('div');
-                    chip.className = 'topic-chip';
-                    if (type.includes('Image')) chip.classList.add('img');
-                    else if (type.includes('LaserScan')) chip.classList.add('scan');
-                    chip.textContent = t;
-                    chip.title = type;
-                    chip.onclick = () => {
-                        if (type.includes('Image')) el.cameraTopic.value = t;
-                        else if (type.includes('LaserScan')) el.lidarTopic.value = t;
-                    };
-                    el.topicList.appendChild(chip);
+            if (!connected || !ros) return;
+            try {
+                ros.getTopics(res => {
+                    if (!res || !res.topics) return;
+                    el.topicList.innerHTML = '';
+                    res.topics.forEach((t, i) => {
+                        const type = res.types ? res.types[i] : '';
+                        const chip = document.createElement('div');
+                        chip.className = 'topic-chip';
+                        if (type && type.includes('Image')) chip.classList.add('img');
+                        else if (type && type.includes('LaserScan')) chip.classList.add('scan');
+                        chip.textContent = t;
+                        chip.title = type || 'unknown';
+                        chip.onclick = () => {
+                            if (type && type.includes('Image')) el.cameraTopic.value = t;
+                            else if (type && type.includes('LaserScan')) el.lidarTopic.value = t;
+                        };
+                        el.topicList.appendChild(chip);
+                    });
                 });
-            });
+            } catch(e) {
+                console.error('[Topics] Error:', e);
+            }
         };
 
         // FPS
