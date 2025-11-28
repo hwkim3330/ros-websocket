@@ -1,4 +1,5 @@
 # ros_web_controller
+<img width="1912" height="970" alt="image" src="https://github.com/user-attachments/assets/cbff4677-40b7-46fa-80c3-b5d9526b223d" />
 
 웹 브라우저에서 ROS2 로봇을 제어하는 패키지
 
