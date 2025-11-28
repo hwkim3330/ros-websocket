@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ROS Robot Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e94560;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            color: #e94560;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            transition: background 0.3s;
+        }
+
+        .status-dot.connected {
+            background: #4ecdc4;
+            box-shadow: 0 0 10px #4ecdc4;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #0f3460;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            color: #e94560;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Connection Panel */
+        .connection-panel {
+            grid-column: 1 / -1;
+        }
+
+        .connection-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .connection-form input {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        .connection-form input:focus {
+            outline: 2px solid #e94560;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ff6b6b;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: #4ecdc4;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .joystick-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #0f3460 0%, #16213e 100%);
+            border-radius: 50%;
+            border: 3px solid #e94560;
+            touch-action: none;
+        }
+
+        .joystick {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #e94560 0%, #c73659 100%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            transition: box-shadow 0.2s;
+        }
+
+        .joystick:active {
+            cursor: grabbing;
+            box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
+        }
+
+        .velocity-display {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .velocity-item {
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .velocity-label {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .velocity-value {
+            font-size: 1.1rem;
+            color: #4ecdc4;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Speed Settings */
+        .speed-settings {
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .speed-slider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .speed-slider label {
+            font-size: 0.8rem;
+            color: #888;
+            width: 80px;
+        }
+
+        .speed-slider input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #0f3460;
+            border-radius: 3px;
+        }
+
+        .speed-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #e94560;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .speed-slider span {
+            font-size: 0.85rem;
+            color: #4ecdc4;
+            width: 50px;
+            text-align: right;
+        }
+
+        /* Quick Buttons */
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .quick-btn {
+            padding: 15px 10px;
+            background: #0f3460;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .quick-btn:hover {
+            border-color: #e94560;
+        }
+
+        .quick-btn:active {
+            background: #e94560;
+            transform: scale(0.95);
+        }
+
+        .quick-btn.stop {
+            background: #c73659;
+            grid-column: 2;
+        }
+
+        /* Camera Panel */
+        .camera-panel {
+            min-height: 300px;
+        }
+
+        .camera-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+        }
+
+        .camera-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .camera-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+        }
+
+        .camera-placeholder svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 10px;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .camera-controls input {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        /* LiDAR Panel */
+        .lidar-panel {
+            min-height: 300px;
+        }
+
+        .lidar-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        #lidarCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .lidar-info {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .lidar-info span {
+            color: #4ecdc4;
+        }
+
+        /* Topic List */
+        .topic-panel {
+            grid-column: 1 / -1;
+        }
+
+        .topic-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .topic-item {
+            background: #0f3460;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            color: #4ecdc4;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .topic-item:hover {
+            background: #e94560;
+            color: white;
+        }
+
+        /* Log Panel */
+        .log-panel {
+            grid-column: 1 / -1;
+        }
+
+        .log-container {
+            background: #0a0a15;
+            border-radius: 8px;
+            padding: 10px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+
+        .log-entry.info { color: #4ecdc4; }
+        .log-entry.warn { color: #ffd93d; }
+        .log-entry.error { color: #ff6b6b; }
+
+        /* Keyboard hints */
+        .keyboard-hints {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+        }
+
+        .keyboard-hints kbd {
+            background: #0f3460;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ROS Robot Controller</h1>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Connection Panel -->
+        <div class="panel connection-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+                Connection
+            </div>
+            <div class="connection-form">
+                <input type="text" id="robotIP" placeholder="Robot IP (e.g., 192.168.1.100)" value="">
+                <input type="number" id="robotPort" placeholder="Port" value="9090" style="max-width: 80px;">
+                <button class="btn btn-primary" id="connectBtn" onclick="toggleConnection()">Connect</button>
+                <button class="btn btn-secondary" onclick="refreshTopics()">Refresh Topics</button>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="panel control-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.58 16.09l-1.09-7.66C20.21 6.46 18.52 5 16.53 5H7.47C5.48 5 3.79 6.46 3.51 8.43l-1.09 7.66C2.2 17.63 3.39 19 4.94 19h0c.68 0 1.32-.27 1.8-.75L9 16h6l2.25 2.25c.48.48 1.13.75 1.8.75h0C20.61 19 21.8 17.63 21.58 16.09zM11 11H9v2H8v-2H6v-1h2V8h1v2h2V11zm4 1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1S15.55 12 15 12zm2-3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1S17.55 9 17 9z"/>
+                </svg>
+                Robot Control
+            </div>
+
+            <div class="joystick-container" id="joystickContainer">
+                <div class="joystick" id="joystick"></div>
+            </div>
+
+            <div class="velocity-display">
+                <div class="velocity-item">
+                    <div class="velocity-label">Linear (m/s)</div>
+                    <div class="velocity-value" id="linearVel">0.00</div>
+                </div>
+                <div class="velocity-item">
+                    <div class="velocity-label">Angular (rad/s)</div>
+                    <div class="velocity-value" id="angularVel">0.00</div>
+                </div>
+            </div>
+
+            <div class="speed-settings">
+                <div class="speed-slider">
+                    <label>Max Linear</label>
+                    <input type="range" id="maxLinear" min="0.1" max="2.0" step="0.1" value="0.5">
+                    <span id="maxLinearVal">0.5</span>
+                </div>
+                <div class="speed-slider">
+                    <label>Max Angular</label>
+                    <input type="range" id="maxAngular" min="0.1" max="3.0" step="0.1" value="1.0">
+                    <span id="maxAngularVal">1.0</span>
+                </div>
+            </div>
+
+            <div class="quick-buttons">
+                <button class="quick-btn" onmousedown="sendQuickCmd('left')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('left')" ontouchend="stopRobot()">&#8634;</button>
+                <button class="quick-btn" onmousedown="sendQuickCmd('forward')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('forward')" ontouchend="stopRobot()">&#9650;</button>
+                <button class="quick-btn" onmousedown="sendQuickCmd('right')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('right')" ontouchend="stopRobot()">&#8635;</button>
+                <button class="quick-btn" onmousedown="sendQuickCmd('rotateLeft')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('rotateLeft')" ontouchend="stopRobot()">&#8592;</button>
+                <button class="quick-btn stop" onclick="stopRobot()">&#9632;</button>
+                <button class="quick-btn" onmousedown="sendQuickCmd('rotateRight')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('rotateRight')" ontouchend="stopRobot()">&#8594;</button>
+                <div></div>
+                <button class="quick-btn" onmousedown="sendQuickCmd('backward')" onmouseup="stopRobot()" ontouchstart="sendQuickCmd('backward')" ontouchend="stopRobot()">&#9660;</button>
+                <div></div>
+            </div>
+
+            <div class="keyboard-hints">
+                Keyboard: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>&#8593;</kbd><kbd>&#8595;</kbd><kbd>&#8592;</kbd><kbd>&#8594;</kbd> | <kbd>Space</kbd> Stop
+            </div>
+        </div>
+
+        <!-- Camera Panel -->
+        <div class="panel camera-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                </svg>
+                Camera
+            </div>
+            <div class="camera-container" id="cameraContainer">
+                <div class="camera-placeholder" id="cameraPlaceholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                    <span>Camera not connected</span>
+                </div>
+                <img id="cameraImage" style="display: none;" alt="Camera Feed">
+            </div>
+            <div class="camera-controls">
+                <input type="text" id="cameraTopic" placeholder="Image topic (e.g., /camera/image_raw/compressed)">
+                <button class="btn btn-secondary" onclick="subscribeCameraTopic()">Subscribe</button>
+            </div>
+        </div>
+
+        <!-- LiDAR Panel -->
+        <div class="panel lidar-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+                </svg>
+                LiDAR
+            </div>
+            <div class="lidar-container">
+                <canvas id="lidarCanvas"></canvas>
+            </div>
+            <div class="lidar-info">
+                Points: <span id="lidarPoints">0</span>
+                Range: <span id="lidarRange">0-0</span> m
+                Topic: <span id="lidarTopicInfo">/scan</span>
+            </div>
+            <div class="camera-controls">
+                <input type="text" id="lidarTopic" placeholder="Scan topic (e.g., /scan)" value="/scan">
+                <button class="btn btn-secondary" onclick="subscribeLidarTopic()">Subscribe</button>
+            </div>
+        </div>
+
+        <!-- Topic List -->
+        <div class="panel topic-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                </svg>
+                Available Topics
+            </div>
+            <div class="topic-list" id="topicList">
+                <div class="topic-item">Connect to robot first</div>
+            </div>
+        </div>
+
+        <!-- Log Panel -->
+        <div class="panel log-panel">
+            <div class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
+                </svg>
+                Log
+            </div>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let ros = null;
+        let cmdVelPub = null;
+        let cameraSubscriber = null;
+        let lidarSubscriber = null;
+        let connected = false;
+
+        // Joystick state
+        let joystickActive = false;
+        let currentLinear = 0;
+        let currentAngular = 0;
+
+        // Settings
+        let maxLinearSpeed = 0.5;
+        let maxAngularSpeed = 1.0;
+
+        // LiDAR canvas
+        let lidarCanvas, lidarCtx;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initJoystick();
+            initLidarCanvas();
+            initKeyboard();
+            initSliders();
+
+            // Load saved IP
+            const savedIP = localStorage.getItem('robotIP');
+            if (savedIP) {
+                document.getElementById('robotIP').value = savedIP;
+            }
+
+            log('info', 'Robot Controller initialized. Enter robot IP and click Connect.');
+        });
+
+        // Logging
+        function log(type, message) {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+
+            // Limit log entries
+            while (container.children.length > 100) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        // Connection
+        function toggleConnection() {
+            if (connected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const ip = document.getElementById('robotIP').value.trim();
+            const port = document.getElementById('robotPort').value || '9090';
+
+            if (!ip) {
+                log('error', 'Please enter robot IP address');
+                return;
+            }
+
+            localStorage.setItem('robotIP', ip);
+
+            const url = `ws://${ip}:${port}`;
+            log('info', `Connecting to ${url}...`);
+
+            try {
+                ros = new ROSLIB.Ros({ url: url });
+
+                ros.on('connection', () => {
+                    connected = true;
+                    updateConnectionStatus(true);
+                    log('info', 'Connected to ROS bridge');
+
+                    // Setup cmd_vel publisher
+                    setupCmdVelPublisher();
+
+                    // Get topic list
+                    refreshTopics();
+                });
+
+                ros.on('error', (error) => {
+                    log('error', `Connection error: ${error}`);
+                });
+
+                ros.on('close', () => {
+                    connected = false;
+                    updateConnectionStatus(false);
+                    log('warn', 'Connection closed');
+                });
+            } catch (e) {
+                log('error', `Failed to connect: ${e.message}`);
+            }
+        }
+
+        function disconnect() {
+            if (ros) {
+                ros.close();
+                ros = null;
+            }
+            connected = false;
+            updateConnectionStatus(false);
+            log('info', 'Disconnected');
+        }
+
+        function updateConnectionStatus(isConnected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btn = document.getElementById('connectBtn');
+
+            if (isConnected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+                btn.textContent = 'Disconnect';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+                btn.textContent = 'Connect';
+            }
+        }
+
+        // cmd_vel publisher
+        function setupCmdVelPublisher() {
+            cmdVelPub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/cmd_vel',
+                messageType: 'geometry_msgs/Twist'
+            });
+            log('info', 'cmd_vel publisher ready');
+        }
+
+        function sendVelocity(linear, angular) {
+            if (!connected || !cmdVelPub) return;
+
+            const twist = new ROSLIB.Message({
+                linear: { x: linear, y: 0, z: 0 },
+                angular: { x: 0, y: 0, z: angular }
+            });
+
+            cmdVelPub.publish(twist);
+
+            document.getElementById('linearVel').textContent = linear.toFixed(2);
+            document.getElementById('angularVel').textContent = angular.toFixed(2);
+        }
+
+        function stopRobot() {
+            sendVelocity(0, 0);
+            currentLinear = 0;
+            currentAngular = 0;
+        }
+
+        function sendQuickCmd(direction) {
+            const lin = maxLinearSpeed;
+            const ang = maxAngularSpeed;
+
+            switch(direction) {
+                case 'forward': sendVelocity(lin, 0); break;
+                case 'backward': sendVelocity(-lin, 0); break;
+                case 'left': sendVelocity(lin * 0.5, ang); break;
+                case 'right': sendVelocity(lin * 0.5, -ang); break;
+                case 'rotateLeft': sendVelocity(0, ang); break;
+                case 'rotateRight': sendVelocity(0, -ang); break;
+            }
+        }
+
+        // Joystick
+        function initJoystick() {
+            const container = document.getElementById('joystickContainer');
+            const joystick = document.getElementById('joystick');
+
+            const centerX = container.offsetWidth / 2;
+            const centerY = container.offsetHeight / 2;
+            const maxRadius = (container.offsetWidth - joystick.offsetWidth) / 2;
+
+            function handleMove(clientX, clientY) {
+                const rect = container.getBoundingClientRect();
+                let x = clientX - rect.left - centerX;
+                let y = clientY - rect.top - centerY;
+
+                // Limit to circle
+                const distance = Math.sqrt(x * x + y * y);
+                if (distance > maxRadius) {
+                    x = (x / distance) * maxRadius;
+                    y = (y / distance) * maxRadius;
+                }
+
+                joystick.style.left = (centerX + x) + 'px';
+                joystick.style.top = (centerY + y) + 'px';
+
+                // Calculate velocity (-1 to 1)
+                currentLinear = -y / maxRadius * maxLinearSpeed;
+                currentAngular = -x / maxRadius * maxAngularSpeed;
+
+                sendVelocity(currentLinear, currentAngular);
+            }
+
+            function handleEnd() {
+                joystickActive = false;
+                joystick.style.left = '50%';
+                joystick.style.top = '50%';
+                joystick.style.transform = 'translate(-50%, -50%)';
+                stopRobot();
+            }
+
+            // Mouse events
+            joystick.addEventListener('mousedown', (e) => {
+                joystickActive = true;
+                joystick.style.transform = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (joystickActive) {
+                    handleMove(e.clientX, e.clientY);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (joystickActive) handleEnd();
+            });
+
+            // Touch events
+            joystick.addEventListener('touchstart', (e) => {
+                joystickActive = true;
+                joystick.style.transform = 'none';
+                e.preventDefault();
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                if (joystickActive && e.touches.length > 0) {
+                    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                    e.preventDefault();
+                }
+            });
+
+            container.addEventListener('touchend', handleEnd);
+            container.addEventListener('touchcancel', handleEnd);
+        }
+
+        // Keyboard
+        function initKeyboard() {
+            const keyState = {};
+
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+
+                keyState[e.code] = true;
+                updateVelocityFromKeys(keyState);
+
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                keyState[e.code] = false;
+                updateVelocityFromKeys(keyState);
+            });
+        }
+
+        function updateVelocityFromKeys(keys) {
+            let linear = 0;
+            let angular = 0;
+
+            if (keys['KeyW'] || keys['ArrowUp']) linear += maxLinearSpeed;
+            if (keys['KeyS'] || keys['ArrowDown']) linear -= maxLinearSpeed;
+            if (keys['KeyA'] || keys['ArrowLeft']) angular += maxAngularSpeed;
+            if (keys['KeyD'] || keys['ArrowRight']) angular -= maxAngularSpeed;
+
+            if (keys['Space']) {
+                linear = 0;
+                angular = 0;
+            }
+
+            sendVelocity(linear, angular);
+        }
+
+        // Sliders
+        function initSliders() {
+            const linearSlider = document.getElementById('maxLinear');
+            const angularSlider = document.getElementById('maxAngular');
+
+            linearSlider.addEventListener('input', (e) => {
+                maxLinearSpeed = parseFloat(e.target.value);
+                document.getElementById('maxLinearVal').textContent = maxLinearSpeed.toFixed(1);
+            });
+
+            angularSlider.addEventListener('input', (e) => {
+                maxAngularSpeed = parseFloat(e.target.value);
+                document.getElementById('maxAngularVal').textContent = maxAngularSpeed.toFixed(1);
+            });
+        }
+
+        // Topics
+        function refreshTopics() {
+            if (!connected) {
+                log('warn', 'Not connected');
+                return;
+            }
+
+            ros.getTopics((result) => {
+                const list = document.getElementById('topicList');
+                list.innerHTML = '';
+
+                result.topics.forEach((topic, i) => {
+                    const item = document.createElement('div');
+                    item.className = 'topic-item';
+                    item.textContent = topic;
+                    item.title = result.types[i];
+                    item.onclick = () => {
+                        // Auto-fill appropriate input based on type
+                        const type = result.types[i];
+                        if (type.includes('Image') || type.includes('CompressedImage')) {
+                            document.getElementById('cameraTopic').value = topic;
+                        } else if (type.includes('LaserScan')) {
+                            document.getElementById('lidarTopic').value = topic;
+                        }
+                    };
+                    list.appendChild(item);
+                });
+
+                log('info', `Found ${result.topics.length} topics`);
+            });
+        }
+
+        // Camera
+        function subscribeCameraTopic() {
+            const topic = document.getElementById('cameraTopic').value.trim();
+            if (!topic) {
+                log('warn', 'Please enter camera topic');
+                return;
+            }
+
+            if (!connected) {
+                log('warn', 'Not connected');
+                return;
+            }
+
+            // Unsubscribe previous
+            if (cameraSubscriber) {
+                cameraSubscriber.unsubscribe();
+            }
+
+            // Determine message type
+            const isCompressed = topic.includes('compressed');
+            const messageType = isCompressed ?
+                'sensor_msgs/CompressedImage' :
+                'sensor_msgs/Image';
+
+            cameraSubscriber = new ROSLIB.Topic({
+                ros: ros,
+                name: topic,
+                messageType: messageType,
+                throttle_rate: 100 // Limit to ~10 fps for performance
+            });
+
+            const img = document.getElementById('cameraImage');
+            const placeholder = document.getElementById('cameraPlaceholder');
+
+            cameraSubscriber.subscribe((message) => {
+                placeholder.style.display = 'none';
+                img.style.display = 'block';
+
+                if (isCompressed) {
+                    img.src = `data:image/${message.format};base64,${message.data}`;
+                } else {
+                    // Raw image - convert to data URL
+                    // This is simplified; real implementation needs proper encoding
+                    img.src = `data:image/png;base64,${message.data}`;
+                }
+            });
+
+            log('info', `Subscribed to camera: ${topic}`);
+        }
+
+        // LiDAR
+        function initLidarCanvas() {
+            lidarCanvas = document.getElementById('lidarCanvas');
+            lidarCtx = lidarCanvas.getContext('2d');
+
+            // Set canvas size
+            function resizeCanvas() {
+                const container = lidarCanvas.parentElement;
+                lidarCanvas.width = container.offsetWidth;
+                lidarCanvas.height = container.offsetHeight;
+                drawLidarBackground();
+            }
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function drawLidarBackground() {
+            const ctx = lidarCtx;
+            const w = lidarCanvas.width;
+            const h = lidarCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const maxR = Math.min(cx, cy) - 10;
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw range circles
+            ctx.strokeStyle = '#1a3a1a';
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 4; i++) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, (maxR / 4) * i, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Draw cross
+            ctx.beginPath();
+            ctx.moveTo(cx, 10);
+            ctx.lineTo(cx, h - 10);
+            ctx.moveTo(10, cy);
+            ctx.lineTo(w - 10, cy);
+            ctx.stroke();
+
+            // Draw robot indicator
+            ctx.fillStyle = '#e94560';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Forward direction
+            ctx.fillStyle = '#4ecdc4';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - 15);
+            ctx.lineTo(cx - 5, cy - 8);
+            ctx.lineTo(cx + 5, cy - 8);
+            ctx.fill();
+        }
+
+        function subscribeLidarTopic() {
+            const topic = document.getElementById('lidarTopic').value.trim();
+            if (!topic) {
+                log('warn', 'Please enter LiDAR topic');
+                return;
+            }
+
+            if (!connected) {
+                log('warn', 'Not connected');
+                return;
+            }
+
+            if (lidarSubscriber) {
+                lidarSubscriber.unsubscribe();
+            }
+
+            lidarSubscriber = new ROSLIB.Topic({
+                ros: ros,
+                name: topic,
+                messageType: 'sensor_msgs/LaserScan',
+                throttle_rate: 100
+            });
+
+            lidarSubscriber.subscribe((message) => {
+                drawLidarScan(message);
+            });
+
+            document.getElementById('lidarTopicInfo').textContent = topic;
+            log('info', `Subscribed to LiDAR: ${topic}`);
+        }
+
+        function drawLidarScan(scan) {
+            const ctx = lidarCtx;
+            const w = lidarCanvas.width;
+            const h = lidarCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const maxR = Math.min(cx, cy) - 10;
+
+            // Clear and draw background
+            drawLidarBackground();
+
+            // Update info
+            document.getElementById('lidarPoints').textContent = scan.ranges.length;
+            document.getElementById('lidarRange').textContent =
+                `${scan.range_min.toFixed(1)}-${scan.range_max.toFixed(1)}`;
+
+            // Draw scan points
+            ctx.fillStyle = '#4ecdc4';
+            const scale = maxR / scan.range_max;
+
+            for (let i = 0; i < scan.ranges.length; i++) {
+                const r = scan.ranges[i];
+                if (r < scan.range_min || r > scan.range_max || !isFinite(r)) continue;
+
+                const angle = scan.angle_min + i * scan.angle_increment;
+                // Rotate 90 degrees so forward is up
+                const x = cx + r * scale * Math.sin(-angle);
+                const y = cy - r * scale * Math.cos(angle);
+
+                ctx.fillRect(x - 1, y - 1, 2, 2);
+            }
+        }
+    </script>
+
+    <!-- ROSLIB -->
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+</body>
+</html>
