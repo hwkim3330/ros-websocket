@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+  Standalone rosbridge WebSocket launch file.
+  Use this if you want to run rosbridge separately.
+-->
+<launch>
+  <arg name="port" default="9090" description="WebSocket port"/>
+  <arg name="address" default="" description="Bind address"/>
+  <arg name="retry_startup_delay" default="5.0"/>
+  <arg name="fragment_timeout" default="600"/>
+  <arg name="delay_between_messages" default="0"/>
+  <arg name="max_message_size" default="10000000"/>
+  <arg name="unregister_timeout" default="10.0"/>
+
+  <node name="rosbridge_websocket" pkg="rosbridge_server" exec="rosbridge_websocket" output="screen">
+    <param name="port" value="$(var port)"/>
+    <param name="address" value="$(var address)"/>
+    <param name="retry_startup_delay" value="$(var retry_startup_delay)"/>
+    <param name="fragment_timeout" value="$(var fragment_timeout)"/>
+    <param name="delay_between_messages" value="$(var delay_between_messages)"/>
+    <param name="max_message_size" value="$(var max_message_size)"/>
+    <param name="unregister_timeout" value="$(var unregister_timeout)"/>
+  </node>
+
+  <node name="rosapi" pkg="rosapi" exec="rosapi_node" output="screen">
+    <param name="params_glob" value=""/>
+    <param name="topics_glob" value=""/>
+    <param name="services_glob" value=""/>
+  </node>
+</launch>

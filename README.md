@@ -1,57 +1,59 @@
 # ROS WebSocket Robot Controller
 
-웹 브라우저에서 ROS 로봇을 제어하는 웹 인터페이스입니다.
-
-## Features
-
-- **조이스틱 컨트롤**: 터치/마우스로 로봇 조작
-- **키보드 컨트롤**: WASD 또는 화살표 키
-- **카메라 스트리밍**: compressed/raw 이미지 토픽 지원
-- **LiDAR 시각화**: 실시간 LaserScan 렌더링
-- **토픽 브라우저**: 사용 가능한 ROS 토픽 목록
-
-## Requirements
-
-### 로봇 (Jetson)
-
-```bash
-# ROS2 rosbridge 설치 (Humble/Jazzy)
-sudo apt install ros-${ROS_DISTRO}-rosbridge-server
-
-# rosbridge 실행
-ros2 launch rosbridge_server rosbridge_websocket_launch.xml
-```
-
-### 사용 방법
-
-1. 로봇에서 rosbridge 서버 실행 (포트 9090)
-2. 웹페이지 접속: https://hwkim3330.github.io/ros-websocket
-3. 로봇 IP 입력 후 Connect 클릭
-4. 조이스틱 또는 키보드로 로봇 조작
-
-## Controls
-
-| 입력 | 동작 |
-|------|------|
-| W / ↑ | 전진 |
-| S / ↓ | 후진 |
-| A / ← | 좌회전 |
-| D / → | 우회전 |
-| Space | 정지 |
-| 조이스틱 | 자유 이동 |
-
-## ROS Topics
-
-### Published
-- `/cmd_vel` (geometry_msgs/Twist) - 로봇 속도 명령
-
-### Subscribed (선택)
-- 카메라: `/camera/image_raw/compressed` 등
-- LiDAR: `/scan`
+웹 브라우저에서 ROS2 로봇을 제어하는 패키지입니다.
 
 ## Demo
 
-GitHub Pages에서 바로 사용: https://hwkim3330.github.io/ros-websocket
+GitHub Pages: https://hwkim3330.github.io/ros-websocket
+
+## Quick Start (Jetson)
+
+```bash
+# 1. Clone
+cd ~/ros2_ws/src
+git clone https://github.com/hwkim3330/ros-websocket.git
+
+# 2. Install dependencies
+sudo apt install ros-humble-rosbridge-server
+
+# 3. Build
+cd ~/ros2_ws
+colcon build --packages-select ros_web_controller
+source install/setup.bash
+
+# 4. Run
+ros2 launch ros_web_controller web_control.launch.py
+```
+
+## Access
+
+브라우저에서 `http://젯봇IP:8080` 접속
+
+## Structure
+
+```
+ros_web_controller/
+├── package.xml
+├── setup.py
+├── launch/
+│   ├── web_control.launch.py      # Main launch (web + rosbridge)
+│   └── rosbridge_websocket.launch.xml
+├── ros_web_controller/
+│   ├── __init__.py
+│   └── web_server.py              # HTTP server node
+├── web/
+│   └── index.html                 # Web UI
+└── scripts/
+    └── quick_start.sh
+```
+
+## Features
+
+- Joystick / Keyboard control
+- Camera streaming
+- LiDAR visualization
+- Auto-connect to local rosbridge
+- Mobile-friendly
 
 ## License
 
