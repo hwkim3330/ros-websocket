@@ -214,11 +214,18 @@
         .lidar-container {
             background: #000;
             border-radius: var(--radius);
+            width: 100%;
+            max-width: 250px;
             aspect-ratio: 1;
-            max-height: 200px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .lidar-container canvas {
+            width: 100%;
+            height: 100%;
         }
 
         .lidar-stats {
@@ -583,7 +590,7 @@
                     </div>
                     <div class="panel-body">
                         <div class="lidar-container">
-                            <canvas id="lidarCanvas" width="200" height="200"></canvas>
+                            <canvas id="lidarCanvas" width="250" height="250"></canvas>
                         </div>
                         <div class="lidar-stats">
                             Points: <span id="lidarPoints">0</span> |
