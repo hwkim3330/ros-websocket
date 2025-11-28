@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ROS Web Controller - Demo</title>
     <style>
         :root {
@@ -129,7 +129,7 @@
 
         .demo-notice {
             background: var(--surface);
-            border: 1px solid var(--warning);
+            border: 1px solid var(--primary);
             border-radius: var(--radius);
             padding: 16px 20px;
             margin-bottom: 24px;
@@ -141,7 +141,7 @@
         .demo-notice svg {
             width: 24px;
             height: 24px;
-            color: var(--warning);
+            color: var(--primary);
             flex-shrink: 0;
         }
 
@@ -151,7 +151,7 @@
         }
 
         .demo-notice strong {
-            color: var(--warning);
+            color: var(--primary);
         }
 
         /* Demo UI Preview */
@@ -192,19 +192,14 @@
         .demo-status-dot {
             width: 8px;
             height: 8px;
-            background: var(--warning);
+            background: var(--success);
             border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            box-shadow: 0 0 8px var(--success);
         }
 
         .demo-body {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr 320px;
             gap: 16px;
             padding: 16px;
         }
@@ -258,16 +253,16 @@
         .lidar-box {
             background: #000;
             border-radius: 8px;
-            height: 150px;
+            height: 180px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
         }
 
-        .lidar-canvas {
-            width: 140px;
-            height: 140px;
+        #lidarDemo {
+            width: 170px;
+            height: 170px;
         }
 
         /* Control Preview */
@@ -282,91 +277,208 @@
             color: var(--text-muted);
             margin-bottom: 12px;
             text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .joystick-demo {
-            width: 120px;
-            height: 120px;
+        .control-title .hint {
+            font-size: 10px;
+            color: var(--primary);
+            text-transform: none;
+        }
+
+        /* Joystick */
+        .joystick-area {
+            width: 140px;
+            height: 140px;
             background: var(--bg);
             border: 2px solid var(--border);
             border-radius: 50%;
             margin: 0 auto 16px;
             position: relative;
+            touch-action: none;
+            cursor: crosshair;
         }
 
-        .joystick-stick-demo {
-            width: 40px;
-            height: 40px;
+        .joystick-center {
+            width: 8px;
+            height: 8px;
+            background: var(--border);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .joystick-stick {
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, var(--primary), var(--primary-hover));
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            animation: joystick-move 4s ease-in-out infinite;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            pointer-events: none;
+            transition: box-shadow 0.2s;
         }
 
-        @keyframes joystick-move {
-            0%, 100% { transform: translate(-50%, -50%); }
-            25% { transform: translate(-30%, -70%); }
-            50% { transform: translate(-50%, -50%); }
-            75% { transform: translate(-70%, -30%); }
+        .joystick-stick.active {
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
         }
 
-        .vel-demo {
+        /* Velocity Display */
+        .vel-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             text-align: center;
         }
 
-        .vel-demo-box {
+        .vel-box {
             background: var(--bg);
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
         }
 
-        .vel-demo-label {
+        .vel-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .vel-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .vel-unit {
             font-size: 10px;
             color: var(--text-muted);
         }
 
-        .vel-demo-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary);
+        /* Motor bars */
+        .motor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .motor-box {
+            background: var(--bg);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .motor-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .motor-bar {
+            height: 6px;
+            background: var(--surface-2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .motor-fill {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.1s, background 0.1s;
+        }
+
+        .motor-fill.reverse { background: var(--warning); }
+
+        .motor-val {
+            font-size: 11px;
+            margin-top: 4px;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
         }
 
         /* D-Pad */
-        .dpad-demo {
+        .dpad {
             display: grid;
-            grid-template-columns: repeat(3, 36px);
+            grid-template-columns: repeat(3, 40px);
             gap: 4px;
             justify-content: center;
-            margin-top: 16px;
         }
 
-        .dpad-btn-demo {
-            width: 36px;
-            height: 36px;
+        .dpad-btn {
+            width: 40px;
+            height: 40px;
             background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 16px;
             color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        .dpad-btn-demo.stop {
+        .dpad-btn:hover { border-color: var(--primary); }
+        .dpad-btn:active, .dpad-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .dpad-btn.stop {
             background: var(--danger);
             border-color: var(--danger);
-            font-size: 8px;
+            font-size: 9px;
             font-weight: 600;
         }
 
-        .dpad-btn-demo.empty { visibility: hidden; }
+        .dpad-btn.empty { visibility: hidden; }
+
+        .kbd-hint {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+
+        kbd {
+            padding: 2px 5px;
+            background: var(--bg);
+            border-radius: 3px;
+            font-size: 9px;
+            border: 1px solid var(--border);
+        }
+
+        /* ROS Message Display */
+        .ros-msg {
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 12px;
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .ros-msg .topic {
+            color: var(--success);
+            margin-bottom: 4px;
+        }
+
+        .ros-msg .field { color: var(--primary); }
+        .ros-msg .value { color: var(--warning); }
 
         /* Features */
         .features {
@@ -469,13 +581,13 @@
 
     <!-- Demo Section -->
     <section class="demo-section">
-        <h2>UI Preview</h2>
+        <h2>Interactive Demo</h2>
 
         <div class="demo-notice">
             <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
-            <p><strong>Demo Mode:</strong> This is a UI preview only. To control a real robot, install the package on your ROS2 system and access via <code>http://ROBOT_IP:8080</code></p>
+            <p><strong>Try it!</strong> Use the joystick, D-pad, or keyboard (WASD/Arrows) to control. This demo shows the UI - install the package to control a real robot.</p>
         </div>
 
         <div class="demo-frame">
@@ -493,48 +605,89 @@
             </div>
             <div class="demo-body">
                 <div class="demo-left">
+                    <!-- Camera -->
                     <div class="camera-box">
                         <div class="camera-placeholder">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                             </svg>
                             <div>Camera Feed</div>
+                            <div style="font-size:11px;margin-top:4px">/camera/image/compressed</div>
                         </div>
                         <div class="camera-overlay">DEMO</div>
                     </div>
+
+                    <!-- LiDAR -->
                     <div class="lidar-box">
-                        <canvas class="lidar-canvas" id="lidarDemo"></canvas>
+                        <canvas id="lidarDemo" width="170" height="170"></canvas>
+                    </div>
+
+                    <!-- ROS Message Preview -->
+                    <div class="ros-msg">
+                        <div class="topic">/cmd_vel [geometry_msgs/Twist]</div>
+                        <div><span class="field">linear.x:</span> <span class="value" id="msgLinear">0.00</span> m/s</div>
+                        <div><span class="field">angular.z:</span> <span class="value" id="msgAngular">0.00</span> rad/s</div>
                     </div>
                 </div>
+
                 <div class="demo-right">
+                    <!-- Joystick -->
                     <div class="control-box">
-                        <div class="control-title">Joystick</div>
-                        <div class="joystick-demo">
-                            <div class="joystick-stick-demo"></div>
+                        <div class="control-title">
+                            Joystick
+                            <span class="hint">Drag to control</span>
                         </div>
-                        <div class="vel-demo">
-                            <div class="vel-demo-box">
-                                <div class="vel-demo-label">Linear</div>
-                                <div class="vel-demo-value">0.00</div>
+                        <div class="joystick-area" id="joystickArea">
+                            <div class="joystick-center"></div>
+                            <div class="joystick-stick" id="joystickStick"></div>
+                        </div>
+
+                        <div class="vel-grid">
+                            <div class="vel-box">
+                                <div class="vel-label">Linear</div>
+                                <div class="vel-value" id="linearVel">0.00</div>
+                                <div class="vel-unit">m/s</div>
                             </div>
-                            <div class="vel-demo-box">
-                                <div class="vel-demo-label">Angular</div>
-                                <div class="vel-demo-value">0.00</div>
+                            <div class="vel-box">
+                                <div class="vel-label">Angular</div>
+                                <div class="vel-value" id="angularVel">0.00</div>
+                                <div class="vel-unit">rad/s</div>
+                            </div>
+                        </div>
+
+                        <div class="motor-grid">
+                            <div class="motor-box">
+                                <div class="motor-label">LEFT MOTOR</div>
+                                <div class="motor-bar"><div class="motor-fill" id="motorL"></div></div>
+                                <div class="motor-val" id="motorLVal">0%</div>
+                            </div>
+                            <div class="motor-box">
+                                <div class="motor-label">RIGHT MOTOR</div>
+                                <div class="motor-bar"><div class="motor-fill" id="motorR"></div></div>
+                                <div class="motor-val" id="motorRVal">0%</div>
                             </div>
                         </div>
                     </div>
-                    <div class="control-box" style="margin-top: 16px;">
-                        <div class="control-title">D-Pad</div>
-                        <div class="dpad-demo">
-                            <div class="dpad-btn-demo">↺</div>
-                            <div class="dpad-btn-demo">▲</div>
-                            <div class="dpad-btn-demo">↻</div>
-                            <div class="dpad-btn-demo">◀</div>
-                            <div class="dpad-btn-demo stop">STOP</div>
-                            <div class="dpad-btn-demo">▶</div>
-                            <div class="dpad-btn-demo empty"></div>
-                            <div class="dpad-btn-demo">▼</div>
-                            <div class="dpad-btn-demo empty"></div>
+
+                    <!-- D-Pad -->
+                    <div class="control-box" style="margin-top: 12px;">
+                        <div class="control-title">
+                            D-Pad
+                            <span class="hint">Click or hold</span>
+                        </div>
+                        <div class="dpad">
+                            <button class="dpad-btn" data-cmd="rotateL">↺</button>
+                            <button class="dpad-btn" data-cmd="fwd">▲</button>
+                            <button class="dpad-btn" data-cmd="rotateR">↻</button>
+                            <button class="dpad-btn" data-cmd="left">◀</button>
+                            <button class="dpad-btn stop" id="stopBtn">STOP</button>
+                            <button class="dpad-btn" data-cmd="right">▶</button>
+                            <button class="dpad-btn empty"></button>
+                            <button class="dpad-btn" data-cmd="back">▼</button>
+                            <button class="dpad-btn empty"></button>
+                        </div>
+                        <div class="kbd-hint">
+                            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> | <kbd>Space</kbd> Stop
                         </div>
                     </div>
                 </div>
@@ -550,7 +703,7 @@
                     </svg>
                 </div>
                 <h3>Camera Streaming</h3>
-                <p>Real-time video via rosbridge (Base64) or MJPEG. Low resolution works great with Base64 encoding.</p>
+                <p>Real-time video via rosbridge (Base64) or MJPEG. Low resolution (640x480) works great with Base64.</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">
@@ -559,7 +712,7 @@
                     </svg>
                 </div>
                 <h3>LiDAR Visualization</h3>
-                <p>2D scan display using sensor_msgs/LaserScan. ~10fps refresh rate for smooth visualization.</p>
+                <p>2D scan display using standard sensor_msgs/LaserScan. Compatible with RPLidar, YDLidar, etc.</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">
@@ -568,7 +721,7 @@
                     </svg>
                 </div>
                 <h3>Multiple Controls</h3>
-                <p>Touch joystick, D-pad buttons, and keyboard (WASD) support. Works on mobile and desktop.</p>
+                <p>Touch joystick, D-pad buttons, and keyboard (WASD). All output standard geometry_msgs/Twist.</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">
@@ -577,7 +730,7 @@
                     </svg>
                 </div>
                 <h3>Mobile Ready</h3>
-                <p>PWA support - add to home screen for app-like experience. Responsive design for all screens.</p>
+                <p>PWA support - add to home screen for app-like experience. Works on iOS Safari and Android Chrome.</p>
             </div>
         </div>
 
@@ -607,63 +760,295 @@
     </footer>
 
     <script>
-        // Animated LiDAR demo
-        const canvas = document.getElementById('lidarDemo');
-        const ctx = canvas.getContext('2d');
-        const w = 140, h = 140;
-        canvas.width = w;
-        canvas.height = h;
+    (function() {
+        'use strict';
 
-        function drawLidar(time) {
-            const cx = w/2, cy = h/2, r = 60;
+        // State
+        let isDragging = false;
+        let currentLinear = 0, currentAngular = 0;
+        const maxLinear = 0.5, maxAngular = 1.0;
+        const wheelBase = 0.14;
 
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, w, h);
+        // DOM Elements
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickStick = document.getElementById('joystickStick');
+        const linearVel = document.getElementById('linearVel');
+        const angularVel = document.getElementById('angularVel');
+        const motorL = document.getElementById('motorL');
+        const motorR = document.getElementById('motorR');
+        const motorLVal = document.getElementById('motorLVal');
+        const motorRVal = document.getElementById('motorRVal');
+        const msgLinear = document.getElementById('msgLinear');
+        const msgAngular = document.getElementById('msgAngular');
+        const stopBtn = document.getElementById('stopBtn');
 
-            // Grid
-            ctx.strokeStyle = '#1a2a1a';
-            ctx.lineWidth = 1;
-            for (let i = 1; i <= 3; i++) {
-                ctx.beginPath();
-                ctx.arc(cx, cy, r/3*i, 0, Math.PI*2);
-                ctx.stroke();
-            }
+        // Update display
+        function updateDisplay(lin, ang) {
+            currentLinear = lin;
+            currentAngular = ang;
 
-            // Cross
-            ctx.beginPath();
-            ctx.moveTo(cx, 5); ctx.lineTo(cx, h-5);
-            ctx.moveTo(5, cy); ctx.lineTo(w-5, cy);
-            ctx.stroke();
+            // Velocity display
+            linearVel.textContent = lin.toFixed(2);
+            angularVel.textContent = ang.toFixed(2);
 
-            // Robot
-            ctx.fillStyle = '#3b82f6';
-            ctx.beginPath();
-            ctx.arc(cx, cy, 4, 0, Math.PI*2);
-            ctx.fill();
+            // ROS message preview
+            msgLinear.textContent = lin.toFixed(2);
+            msgAngular.textContent = ang.toFixed(2);
 
-            // Forward arrow
-            ctx.fillStyle = '#22c55e';
-            ctx.beginPath();
-            ctx.moveTo(cx, cy-12);
-            ctx.lineTo(cx-4, cy-6);
-            ctx.lineTo(cx+4, cy-6);
-            ctx.fill();
+            // Motor estimation (differential drive)
+            const leftSpeed = lin - (ang * wheelBase / 2);
+            const rightSpeed = lin + (ang * wheelBase / 2);
 
-            // Simulated scan points
-            ctx.fillStyle = '#22c55e';
-            const offset = time / 1000;
-            for (let i = 0; i < 60; i++) {
-                const ang = (i / 60) * Math.PI * 2 + offset;
-                const dist = 30 + Math.sin(ang * 3 + offset) * 15 + Math.random() * 5;
-                const x = cx + Math.cos(ang) * dist;
-                const y = cy + Math.sin(ang) * dist;
-                ctx.fillRect(x-1, y-1, 2, 2);
-            }
-
-            requestAnimationFrame(drawLidar);
+            updateMotor('L', leftSpeed);
+            updateMotor('R', rightSpeed);
         }
 
-        requestAnimationFrame(drawLidar);
+        function updateMotor(side, speed) {
+            const pct = Math.min(Math.abs(speed) / (maxLinear * 1.5) * 100, 100);
+            const el = side === 'L' ? motorL : motorR;
+            const valEl = side === 'L' ? motorLVal : motorRVal;
+
+            el.style.width = pct + '%';
+            el.classList.toggle('reverse', speed < 0);
+            valEl.textContent = (speed < 0 ? '-' : '') + Math.round(pct) + '%';
+        }
+
+        function resetJoystick() {
+            joystickStick.style.left = '50%';
+            joystickStick.style.top = '50%';
+            joystickStick.classList.remove('active');
+            updateDisplay(0, 0);
+        }
+
+        // Joystick control
+        function initJoystick() {
+            function getPos(e) {
+                const rect = joystickArea.getBoundingClientRect();
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const x = clientX - rect.left - cx;
+                const y = clientY - rect.top - cy;
+                const maxR = cx - 25;
+                return { x, y, cx, cy, maxR };
+            }
+
+            function moveStick(x, y, maxR) {
+                const dist = Math.sqrt(x * x + y * y);
+                if (dist > maxR) {
+                    x = x / dist * maxR;
+                    y = y / dist * maxR;
+                }
+
+                joystickStick.style.left = `calc(50% + ${x}px)`;
+                joystickStick.style.top = `calc(50% + ${y}px)`;
+
+                // Convert to velocity (-y = forward, -x = turn right)
+                const lin = -y / maxR * maxLinear;
+                const ang = -x / maxR * maxAngular;
+                updateDisplay(lin, ang);
+            }
+
+            function onStart(e) {
+                isDragging = true;
+                joystickStick.classList.add('active');
+                const p = getPos(e);
+                moveStick(p.x, p.y, p.maxR);
+                e.preventDefault();
+            }
+
+            function onMove(e) {
+                if (!isDragging) return;
+                const p = getPos(e);
+                moveStick(p.x, p.y, p.maxR);
+                e.preventDefault();
+            }
+
+            function onEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                resetJoystick();
+            }
+
+            joystickArea.addEventListener('mousedown', onStart);
+            joystickArea.addEventListener('touchstart', onStart, { passive: false });
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchend', onEnd);
+        }
+
+        // D-Pad control
+        function initDpad() {
+            const cmds = {
+                fwd: () => updateDisplay(maxLinear, 0),
+                back: () => updateDisplay(-maxLinear, 0),
+                left: () => updateDisplay(maxLinear * 0.5, maxAngular),
+                right: () => updateDisplay(maxLinear * 0.5, -maxAngular),
+                rotateL: () => updateDisplay(0, maxAngular),
+                rotateR: () => updateDisplay(0, -maxAngular)
+            };
+
+            document.querySelectorAll('.dpad-btn[data-cmd]').forEach(btn => {
+                const cmd = btn.dataset.cmd;
+
+                function start(e) {
+                    e.preventDefault();
+                    btn.classList.add('active');
+                    if (cmds[cmd]) cmds[cmd]();
+                }
+
+                function end(e) {
+                    if (e) e.preventDefault();
+                    btn.classList.remove('active');
+                    updateDisplay(0, 0);
+                }
+
+                btn.addEventListener('mousedown', start);
+                btn.addEventListener('touchstart', start, { passive: false });
+                btn.addEventListener('mouseup', end);
+                btn.addEventListener('mouseleave', end);
+                btn.addEventListener('touchend', end);
+            });
+
+            stopBtn.addEventListener('click', () => {
+                resetJoystick();
+                updateDisplay(0, 0);
+            });
+
+            stopBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                resetJoystick();
+                updateDisplay(0, 0);
+            }, { passive: false });
+        }
+
+        // Keyboard control
+        function initKeyboard() {
+            const keys = {};
+
+            function updateFromKeys() {
+                let lin = 0, ang = 0;
+                if (keys.KeyW || keys.ArrowUp) lin += maxLinear;
+                if (keys.KeyS || keys.ArrowDown) lin -= maxLinear;
+                if (keys.KeyA || keys.ArrowLeft) ang += maxAngular;
+                if (keys.KeyD || keys.ArrowRight) ang -= maxAngular;
+                if (keys.Space) { lin = 0; ang = 0; }
+                updateDisplay(lin, ang);
+            }
+
+            document.addEventListener('keydown', e => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                keys[e.code] = true;
+                updateFromKeys();
+
+                // Highlight D-pad buttons
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+                    document.querySelector('[data-cmd="fwd"]')?.classList.add('active');
+                }
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+                    document.querySelector('[data-cmd="back"]')?.classList.add('active');
+                }
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+                    document.querySelector('[data-cmd="rotateL"]')?.classList.add('active');
+                }
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+                    document.querySelector('[data-cmd="rotateR"]')?.classList.add('active');
+                }
+
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('keyup', e => {
+                keys[e.code] = false;
+                updateFromKeys();
+
+                // Remove highlight
+                document.querySelectorAll('.dpad-btn.active').forEach(b => b.classList.remove('active'));
+            });
+
+            window.addEventListener('blur', () => {
+                Object.keys(keys).forEach(k => keys[k] = false);
+                updateDisplay(0, 0);
+                document.querySelectorAll('.dpad-btn.active').forEach(b => b.classList.remove('active'));
+            });
+        }
+
+        // LiDAR animation
+        function initLidar() {
+            const canvas = document.getElementById('lidarDemo');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            const cx = w / 2, cy = h / 2;
+            const maxR = 75;
+
+            function draw() {
+                // Clear
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, w, h);
+
+                // Grid circles
+                ctx.strokeStyle = '#1a2a1a';
+                ctx.lineWidth = 1;
+                for (let i = 1; i <= 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, maxR / 3 * i, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Cross
+                ctx.beginPath();
+                ctx.moveTo(cx, 5);
+                ctx.lineTo(cx, h - 5);
+                ctx.moveTo(5, cy);
+                ctx.lineTo(w - 5, cy);
+                ctx.stroke();
+
+                // Robot center
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Forward indicator
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 15);
+                ctx.lineTo(cx - 5, cy - 8);
+                ctx.lineTo(cx + 5, cy - 8);
+                ctx.fill();
+
+                // Simulated scan points (static pattern for demo)
+                ctx.fillStyle = '#22c55e';
+                const time = Date.now() / 1000;
+                for (let i = 0; i < 72; i++) {
+                    const angle = (i / 72) * Math.PI * 2;
+                    // Create a room-like pattern
+                    let dist = 50 + Math.sin(angle * 4) * 15;
+                    // Add some walls
+                    if (angle > Math.PI * 0.8 && angle < Math.PI * 1.2) dist = 30;
+                    if (angle > Math.PI * 1.6 && angle < Math.PI * 2.0) dist = 40;
+
+                    const x = cx + Math.cos(angle - Math.PI/2) * dist;
+                    const y = cy + Math.sin(angle - Math.PI/2) * dist;
+                    ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        // Initialize
+        initJoystick();
+        initDpad();
+        initKeyboard();
+        initLidar();
+    })();
     </script>
 </body>
 </html>
