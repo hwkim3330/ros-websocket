@@ -4,23 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0a0a0f">
-    <title>ROS Controller</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#ffffff">
+    <title>ROS Controller - KETI</title>
     <style>
         :root {
-            --bg: #0a0a0f;
-            --surface: #12121a;
-            --surface-2: #1a1a24;
-            --border: #2a2a3a;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --text: #f1f5f9;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface-2: #f1f5f9;
+            --border: #e2e8f0;
+            --primary: #0066b3;
+            --primary-hover: #005291;
+            --primary-light: #e6f2fa;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --text: #1e293b;
             --text-muted: #64748b;
-            --radius: 8px;
+            --radius: 10px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,24 +45,37 @@
         .header {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
         .logo {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
 
-        .logo svg { width: 20px; height: 20px; }
+        .logo img {
+            height: 28px;
+            width: auto;
+        }
+
+        .logo-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+        }
+
+        .logo-text {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
 
         .conn-group {
             display: flex;
@@ -126,7 +140,12 @@
 
         .status-dot.on {
             background: var(--success);
-            box-shadow: 0 0 8px var(--success);
+            box-shadow: 0 0 6px var(--success);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         /* Main */
@@ -148,27 +167,30 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
         .panel-header {
-            padding: 10px 14px;
-            background: var(--surface-2);
+            padding: 12px 16px;
+            background: var(--primary-light);
             border-bottom: 1px solid var(--border);
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
+            color: var(--primary);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .panel-body { padding: 14px; }
+        .panel-body { padding: 16px; }
 
         .badge {
             font-size: 11px;
-            padding: 2px 8px;
+            padding: 3px 10px;
             background: var(--surface);
-            border-radius: 10px;
+            border-radius: 12px;
             color: var(--success);
+            font-weight: 500;
         }
 
         /* Video */
@@ -212,7 +234,7 @@
 
         /* LiDAR */
         .lidar-container {
-            background: #000;
+            background: #1e293b;
             border-radius: var(--radius);
             width: 100%;
             max-width: 250px;
@@ -221,6 +243,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid var(--border);
         }
 
         .lidar-container canvas {
@@ -272,12 +295,12 @@
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 102, 179, 0.3);
             transition: box-shadow 0.2s;
         }
 
         .joystick-stick.active {
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+            box-shadow: 0 6px 20px rgba(0, 102, 179, 0.5);
         }
 
         .joystick-center {
@@ -353,7 +376,7 @@
 
         .motor-fill {
             height: 100%;
-            background: var(--success);
+            background: var(--primary);
             width: 0%;
             transition: width 0.1s;
         }
@@ -532,10 +555,9 @@
         <!-- Header -->
         <header class="header">
             <div class="logo">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                </svg>
-                ROS Controller
+                <img src="https://raw.githubusercontent.com/hwkim3330/roii/refs/heads/main/keti.png" alt="KETI" onerror="this.style.display='none'">
+                <div class="logo-divider"></div>
+                <span class="logo-text">ROS Controller</span>
             </div>
             <div class="conn-group">
                 <input type="text" class="input input-ip" id="robotIP" placeholder="Robot IP">
@@ -1037,7 +1059,10 @@
 
         function startCamera() {
             const topic = el.cameraTopic.value.trim();
-            if (!topic) return;
+            if (!topic) {
+                showCameraError('Enter topic name');
+                return;
+            }
 
             if (streamMode === 'mjpeg') {
                 // MJPEG direct stream
@@ -1046,23 +1071,28 @@
                     const ip = el.robotIP.value.trim() || window.location.hostname;
                     url = `http://${ip}:8080/stream?topic=${encodeURIComponent(topic)}&type=mjpeg`;
                 }
-                el.cameraImage.src = url;
-                el.cameraImage.style.display = 'block';
-                el.cameraPlaceholder.style.display = 'none';
-                el.cameraBtn.textContent = 'Stop';
 
-                // MJPEG doesn't give frame callback, estimate
-                let lastTime = Date.now();
-                el.cameraImage.onload = () => {
-                    const now = Date.now();
-                    const fps = Math.round(1000 / (now - lastTime));
-                    lastTime = now;
-                    cameraFrames = fps;
+                el.cameraImage.onerror = () => {
+                    console.error('[Camera] MJPEG stream failed');
+                    showCameraError('MJPEG stream failed');
+                    stopCamera();
                 };
+
+                el.cameraImage.onload = function onFirstLoad() {
+                    el.cameraPlaceholder.style.display = 'none';
+                    el.cameraImage.style.display = 'block';
+                    cameraFrames++;
+                    el.cameraImage.onload = () => { cameraFrames++; };
+                };
+
+                el.cameraImage.src = url;
+                el.cameraBtn.textContent = 'Stop';
+                console.log('[Camera] MJPEG:', url);
+
             } else {
                 // rosbridge
                 if (!connected || !ros) {
-                    console.warn('[Camera] Not connected');
+                    showCameraError('Not connected');
                     return;
                 }
 
@@ -1075,9 +1105,23 @@
                         throttle_rate: 66
                     });
 
+                    let frameCount = 0;
+                    const timeoutId = setTimeout(() => {
+                        if (frameCount === 0 && cameraSub) {
+                            console.warn('[Camera] No frames received');
+                            showCameraError('No data from topic');
+                        }
+                    }, 5000);
+
                     cameraSub.subscribe(msg => {
                         try {
+                            if (!msg || !msg.data) {
+                                console.warn('[Camera] Empty message');
+                                return;
+                            }
+                            frameCount++;
                             cameraFrames++;
+                            if (frameCount === 1) clearTimeout(timeoutId);
                             el.cameraPlaceholder.style.display = 'none';
                             el.cameraImage.style.display = 'block';
                             const format = msg.format || 'jpeg';
@@ -1091,9 +1135,18 @@
                     console.log('[Camera] Subscribed to', topic);
                 } catch(e) {
                     console.error('[Camera] Subscribe error:', e);
+                    showCameraError('Subscribe failed');
                     cameraSub = null;
                 }
             }
+        }
+
+        function showCameraError(msg) {
+            el.cameraPlaceholder.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--danger)">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div style="color:var(--danger)">${msg}</div>`;
         }
 
         function stopCamera() {
@@ -1101,8 +1154,15 @@
                 if (cameraSub) { cameraSub.unsubscribe(); cameraSub = null; }
             } catch(e) { console.warn('[Camera] Unsubscribe error:', e); }
             el.cameraImage.src = '';
+            el.cameraImage.onerror = null;
+            el.cameraImage.onload = null;
             el.cameraImage.style.display = 'none';
             el.cameraPlaceholder.style.display = 'flex';
+            el.cameraPlaceholder.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                </svg>
+                <div>No camera feed</div>`;
             el.cameraBtn.textContent = 'Start';
         }
 
@@ -1111,10 +1171,10 @@
             const w = el.lidarCanvas.width, h = el.lidarCanvas.height;
             const cx = w/2, cy = h/2, r = Math.min(cx,cy) - 5;
 
-            lidarCtx.fillStyle = '#000';
+            lidarCtx.fillStyle = '#1e293b';
             lidarCtx.fillRect(0, 0, w, h);
 
-            lidarCtx.strokeStyle = '#1a2a1a';
+            lidarCtx.strokeStyle = '#334155';
             for (let i = 1; i <= 3; i++) {
                 lidarCtx.beginPath();
                 lidarCtx.arc(cx, cy, r/3*i, 0, Math.PI*2);
@@ -1126,13 +1186,13 @@
             lidarCtx.moveTo(5, cy); lidarCtx.lineTo(w-5, cy);
             lidarCtx.stroke();
 
-            lidarCtx.fillStyle = '#3b82f6';
+            lidarCtx.fillStyle = '#0066b3';
             lidarCtx.beginPath();
             lidarCtx.arc(cx, cy, 4, 0, Math.PI*2);
             lidarCtx.fill();
 
             // Forward arrow
-            lidarCtx.fillStyle = '#22c55e';
+            lidarCtx.fillStyle = '#16a34a';
             lidarCtx.beginPath();
             lidarCtx.moveTo(cx, cy-14);
             lidarCtx.lineTo(cx-4, cy-7);
@@ -1143,12 +1203,15 @@
         window.toggleLidar = function() {
             if (lidarSub) { stopLidar(); return; }
             if (!connected || !ros) {
-                console.warn('[LiDAR] Not connected');
+                showLidarError('Not connected');
                 return;
             }
 
             const topic = el.lidarTopic.value.trim();
-            if (!topic) return;
+            if (!topic) {
+                showLidarError('Enter topic name');
+                return;
+            }
 
             try {
                 lidarSub = new ROSLIB.Topic({
@@ -1158,9 +1221,19 @@
                     throttle_rate: 100
                 });
 
+                let frameCount = 0;
+                const timeoutId = setTimeout(() => {
+                    if (frameCount === 0 && lidarSub) {
+                        console.warn('[LiDAR] No scans received');
+                        showLidarError('No data from topic');
+                    }
+                }, 5000);
+
                 lidarSub.subscribe(scan => {
                     try {
+                        frameCount++;
                         lidarFrames++;
+                        if (frameCount === 1) clearTimeout(timeoutId);
                         drawScan(scan);
                     } catch(e) {
                         console.error('[LiDAR] Scan error:', e);
@@ -1171,9 +1244,20 @@
                 console.log('[LiDAR] Subscribed to', topic);
             } catch(e) {
                 console.error('[LiDAR] Subscribe error:', e);
+                showLidarError('Subscribe failed');
                 lidarSub = null;
             }
         };
+
+        function showLidarError(msg) {
+            const w = el.lidarCanvas.width, h = el.lidarCanvas.height;
+            lidarCtx.fillStyle = '#1e293b';
+            lidarCtx.fillRect(0, 0, w, h);
+            lidarCtx.fillStyle = '#dc2626';
+            lidarCtx.font = '12px sans-serif';
+            lidarCtx.textAlign = 'center';
+            lidarCtx.fillText(msg, w/2, h/2);
+        }
 
         function stopLidar() {
             try {
@@ -1204,7 +1288,7 @@
             el.lidarPoints.textContent = scan.ranges.length;
             el.lidarRange.textContent = `${rangeMin.toFixed(1)}-${rangeMax.toFixed(1)}`;
 
-            lidarCtx.fillStyle = '#22c55e';
+            lidarCtx.fillStyle = '#16a34a';
             for (let i = 0; i < scan.ranges.length; i++) {
                 const r = scan.ranges[i];
                 if (r < rangeMin || r > rangeMax || !isFinite(r)) continue;

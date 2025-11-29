@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ROS Web Controller - Demo</title>
+    <title>ROS Web Controller - KETI Demo</title>
     <style>
         :root {
-            --bg: #0a0a0f;
-            --surface: #12121a;
-            --surface-2: #1a1a24;
-            --border: #2a2a3a;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --text: #f1f5f9;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface-2: #f1f5f9;
+            --border: #e2e8f0;
+            --primary: #0066b3;
+            --primary-hover: #005291;
+            --primary-light: #e6f2fa;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --text: #1e293b;
             --text-muted: #64748b;
             --radius: 12px;
         }
@@ -34,17 +35,19 @@
         .hero {
             text-align: center;
             padding: 60px 20px 40px;
-            background: linear-gradient(180deg, #1a1a2e 0%, var(--bg) 100%);
+            background: linear-gradient(180deg, var(--primary-light) 0%, var(--bg) 100%);
+        }
+
+        .hero-logo {
+            height: 40px;
+            margin-bottom: 20px;
         }
 
         .hero h1 {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 12px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary);
         }
 
         .hero p {
@@ -71,8 +74,9 @@
             color: var(--text-muted);
         }
 
-        .badge.ros { border-color: #22c55e; color: #22c55e; }
+        .badge.ros { border-color: var(--success); color: var(--success); }
         .badge.jetson { border-color: #76b900; color: #76b900; }
+        .badge.keti { border-color: var(--primary); color: var(--primary); }
 
         .btn-group {
             display: flex;
@@ -194,7 +198,12 @@
             height: 8px;
             background: var(--success);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--success);
+            box-shadow: 0 0 6px var(--success);
+        }
+
+        .demo-logo img {
+            height: 24px;
+            margin-right: 8px;
         }
 
         .demo-body {
@@ -216,7 +225,7 @@
 
         /* Camera Preview */
         .camera-box {
-            background: #000;
+            background: #1e293b;
             border-radius: 8px;
             aspect-ratio: 16/10;
             display: flex;
@@ -224,17 +233,18 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
 
         .camera-placeholder {
             text-align: center;
-            color: var(--text-muted);
+            color: #94a3b8;
         }
 
         .camera-placeholder svg {
             width: 48px;
             height: 48px;
-            opacity: 0.3;
+            opacity: 0.5;
             margin-bottom: 8px;
         }
 
@@ -251,13 +261,14 @@
 
         /* LiDAR Preview */
         .lidar-box {
-            background: #000;
+            background: #1e293b;
             border-radius: 8px;
             height: 180px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
+            border: 1px solid var(--border);
         }
 
         #lidarDemo {
@@ -321,13 +332,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 102, 179, 0.3);
             pointer-events: none;
             transition: box-shadow 0.2s;
         }
 
         .joystick-stick.active {
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+            box-shadow: 0 6px 20px rgba(0, 102, 179, 0.5);
         }
 
         /* Velocity Display */
@@ -392,7 +403,7 @@
 
         .motor-fill {
             height: 100%;
-            background: var(--success);
+            background: var(--primary);
             width: 0%;
             transition: width 0.1s, background 0.1s;
         }
@@ -498,7 +509,7 @@
         .feature-icon {
             width: 40px;
             height: 40px;
-            background: var(--surface-2);
+            background: var(--primary-light);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -558,14 +569,15 @@
 <body>
     <!-- Hero -->
     <section class="hero">
+        <img src="https://raw.githubusercontent.com/hwkim3330/roii/refs/heads/main/keti.png" alt="KETI" class="hero-logo" onerror="this.style.display='none'">
         <h1>ROS Web Controller</h1>
         <p>Control your ROS2 robot from any browser. Real-time camera streaming and LiDAR visualization included.</p>
 
         <div class="badge-row">
+            <span class="badge keti">KETI</span>
             <span class="badge ros">ROS2 Humble</span>
             <span class="badge jetson">Jetson Ready</span>
             <span class="badge">WebSocket</span>
-            <span class="badge">Mobile PWA</span>
         </div>
 
         <div class="btn-group">
@@ -593,9 +605,7 @@
         <div class="demo-frame">
             <div class="demo-header">
                 <div class="demo-logo">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
+                    <img src="https://raw.githubusercontent.com/hwkim3330/roii/refs/heads/main/keti.png" alt="KETI" onerror="this.style.display='none'">
                     ROS Controller
                 </div>
                 <div class="demo-status">
@@ -755,7 +765,7 @@
     <footer class="footer">
         <p>
             <a href="https://github.com/hwkim3330/ros-websocket">GitHub</a> ·
-            ROS2 Humble · MIT License
+            KETI · ROS2 Humble · MIT License
         </p>
     </footer>
 
@@ -987,11 +997,11 @@
 
             function draw() {
                 // Clear
-                ctx.fillStyle = '#000';
+                ctx.fillStyle = '#1e293b';
                 ctx.fillRect(0, 0, w, h);
 
                 // Grid circles
-                ctx.strokeStyle = '#1a2a1a';
+                ctx.strokeStyle = '#334155';
                 ctx.lineWidth = 1;
                 for (let i = 1; i <= 3; i++) {
                     ctx.beginPath();
@@ -1008,13 +1018,13 @@
                 ctx.stroke();
 
                 // Robot center
-                ctx.fillStyle = '#3b82f6';
+                ctx.fillStyle = '#0066b3';
                 ctx.beginPath();
                 ctx.arc(cx, cy, 5, 0, Math.PI * 2);
                 ctx.fill();
 
                 // Forward indicator
-                ctx.fillStyle = '#22c55e';
+                ctx.fillStyle = '#16a34a';
                 ctx.beginPath();
                 ctx.moveTo(cx, cy - 15);
                 ctx.lineTo(cx - 5, cy - 8);
@@ -1022,7 +1032,7 @@
                 ctx.fill();
 
                 // Simulated scan points (static pattern for demo)
-                ctx.fillStyle = '#22c55e';
+                ctx.fillStyle = '#16a34a';
                 const time = Date.now() / 1000;
                 for (let i = 0; i < 72; i++) {
                     const angle = (i / 72) * Math.PI * 2;
