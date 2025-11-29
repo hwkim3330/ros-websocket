@@ -202,9 +202,37 @@ colcon build --executor sequential
 ros-websocket/
 ├── launch/web_control.launch.py    # Main launch file
 ├── ros_web_controller/web_server.py # HTTP server
-├── web/index.html                   # Web UI
-└── docs/index.html                  # GitHub Pages demo
+├── web/
+│   ├── index.html                  # Web UI
+│   ├── lib/roslib.min.js           # roslibjs (offline)
+│   └── img/keti.png                # Logo
+├── scripts/
+│   ├── install_dependencies.sh     # Download deps (run with internet)
+│   └── install_offline.sh          # Install offline
+└── docs/index.html                 # GitHub Pages demo
 ```
+
+---
+
+## Offline Installation
+
+인터넷이 되는 환경에서 먼저 의존성 다운로드:
+
+```bash
+# 1. 인터넷 되는 PC에서
+cd ~/ros2_ws/src/ros-websocket
+./scripts/install_dependencies.sh
+
+# 2. ~/ros_web_deps 폴더를 USB로 Jetson에 복사
+
+# 3. Jetson에서 오프라인 설치
+./scripts/install_offline.sh
+```
+
+**필수 패키지 (미리 설치 권장):**
+- `ros-humble-rosbridge-server` - WebSocket 통신
+- `ros-humble-usb-cam` 또는 `ros-humble-v4l2-camera` - 카메라
+- Python: `tornado`, `bson`
 
 ---
 
