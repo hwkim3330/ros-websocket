@@ -1,158 +1,139 @@
-# ros_web_controller
+# ROS Web Controller
 
 <p align="center">
-  <img width="1912" alt="ROS Web Controller" src="https://github.com/user-attachments/assets/cbff4677-40b7-46fa-80c3-b5d9526b223d" />
+  <img src="web/img/keti.png" alt="KETI" height="50">
 </p>
 
 <p align="center">
-  <strong>Web-based robot controller for ROS2</strong><br>
-  Browser-based control with camera streaming and LiDAR visualization
+  <strong>Jetson Orin Nano용 웹 기반 로봇 컨트롤러</strong><br>
+  브라우저에서 로봇 제어 + 카메라 스트리밍 + LiDAR 시각화
 </p>
 
 <p align="center">
   <a href="https://hwkim3330.github.io/ros-websocket/">Live Demo</a> •
-  <a href="#jetson-orin-nano-setup">Jetson Setup</a> •
-  <a href="#usage">Usage</a>
+  <a href="#1-jetson-orin-nano-설치">설치 가이드</a>
 </p>
 
 ---
 
-## Jetson Orin Nano Setup
-
-### 1. Install ROS2 Humble
+## 원라인 설치
 
 ```bash
-# Add ROS2 repository
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+curl -sL https://raw.githubusercontent.com/hwkim3330/ros-websocket/main/install.sh | bash
+```
 
-# Install
+> ROS2 Humble이 설치되어 있어야 합니다.
+
+---
+
+## 수동 설치 (Jetson Orin Nano)
+
+```bash
+# 1. 의존성 설치
 sudo apt update
-sudo apt install -y ros-humble-ros-base ros-humble-rosbridge-server python3-colcon-common-extensions
+sudo apt install -y ros-humble-rosbridge-server
 
-# Add to bashrc
+# 2. 패키지 클론 및 빌드
+mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
+git clone https://github.com/hwkim3330/ros-websocket.git
+cd ~/ros2_ws
+colcon build --packages-select ros_web_controller --symlink-install
+source install/setup.bash
+
+# 3. 실행
+ros2 launch ros_web_controller web_control.launch.py
+```
+
+**브라우저 접속:** `http://JETSON_IP:8080`
+
+---
+
+## 1. Jetson Orin Nano 설치
+
+### 1-1. ROS2 Humble 설치 (처음 한번만)
+
+```bash
+# ROS2 저장소 추가
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+  -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+  http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+  | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# 설치
+sudo apt update
+sudo apt install -y ros-humble-ros-base python3-colcon-common-extensions
+
+# bashrc에 추가
 echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 2. Build Package
+### 1-2. 패키지 설치
 
 ```bash
+# 의존성
+sudo apt install -y ros-humble-rosbridge-server
+
+# 클론
 mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
 git clone https://github.com/hwkim3330/ros-websocket.git
 
+# 빌드
 cd ~/ros2_ws
 colcon build --packages-select ros_web_controller --symlink-install
 echo "source ~/ros2_ws/install/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 3. Run
+### 1-3. 실행
 
 ```bash
 ros2 launch ros_web_controller web_control.launch.py
 ```
 
-### 4. Access
-
-Open browser: `http://JETSON_IP:8080`
+브라우저에서 `http://JETSON_IP:8080` 접속
 
 ---
 
-## Quick Start (Any ROS2 System)
+## 2. 카메라 설정
 
-```bash
-cd ~/ros2_ws/src
-git clone https://github.com/hwkim3330/ros-websocket.git
-sudo apt install -y ros-humble-rosbridge-server
-cd ~/ros2_ws && colcon build --packages-select ros_web_controller
-source install/setup.bash
-ros2 launch ros_web_controller web_control.launch.py
-```
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Web Browser                             │
-│  ┌────────────┐  ┌────────────┐  ┌────────────────────────────┐ │
-│  │   Camera   │  │   LiDAR    │  │  Joystick / D-Pad / WASD   │ │
-│  │  Viewer    │  │  Viewer    │  │       Controls             │ │
-│  └─────┬──────┘  └─────┬──────┘  └──────────────┬─────────────┘ │
-└────────│───────────────│────────────────────────│───────────────┘
-         │               │                        │
-         │   ┌───────────┴────────────────────────┘
-         │   │      WebSocket (rosbridge :9090)
-         │   │
-┌────────▼───▼────────────────────────────────────────────────────┐
-│                    Jetson Orin Nano                             │
-│                                                                 │
-│  ┌──────────────────┐      ┌──────────────────────────────────┐ │
-│  │ HTTP Server :8080│      │      rosbridge_websocket         │ │
-│  │   (Web UI)       │      │          :9090                   │ │
-│  └──────────────────┘      └───────────────┬──────────────────┘ │
-│                                            │                    │
-│  ┌─────────────────────────────────────────▼──────────────────┐ │
-│  │                      ROS2 Humble                           │ │
-│  │                                                            │ │
-│  │   /cmd_vel (Twist)          ───────▶  Motor Driver         │ │
-│  │   /scan (LaserScan)         ◀───────  LiDAR Sensor         │ │
-│  │   /camera/image/compressed  ◀───────  Camera (USB/CSI)     │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## ROS2 Topics
-
-| Direction | Topic | Type | Description |
-|-----------|-------|------|-------------|
-| **Publish** | `/cmd_vel` | `geometry_msgs/Twist` | Velocity command |
-| **Subscribe** | `/scan` | `sensor_msgs/LaserScan` | LiDAR data |
-| **Subscribe** | `/camera/image/compressed` | `sensor_msgs/CompressedImage` | Camera |
-
----
-
-## Camera Setup
-
-### USB Camera
+### USB 카메라
 ```bash
 sudo apt install -y ros-humble-usb-cam
 ros2 run usb_cam usb_cam_node_exe --ros-args \
-    -p video_device:=/dev/video0 \
-    -p image_width:=640 -p image_height:=480 -p framerate:=15.0
+  -p video_device:=/dev/video0 \
+  -p image_width:=640 -p image_height:=480 -p framerate:=15.0
 ```
 
-### CSI Camera (IMX219)
+### CSI 카메라 (IMX219)
 ```bash
 sudo apt install -y ros-humble-v4l2-camera
 ros2 run v4l2_camera v4l2_camera_node --ros-args -p video_device:=/dev/video0
 ```
 
-### MJPEG Mode (Lower Latency)
+### MJPEG 모드 (저지연)
 ```bash
 sudo apt install -y ros-humble-web-video-server
 ros2 run web_video_server web_video_server
-# Select MJPEG mode in web UI
+# 웹 UI에서 MJPEG 모드 선택
 ```
 
 ---
 
-## Autostart (systemd)
+## 3. 자동 시작 (systemd)
 
 ```bash
-sudo tee /etc/systemd/system/ros_web.service << EOF
+sudo tee /etc/systemd/system/ros_web.service << 'EOF'
 [Unit]
 Description=ROS Web Controller
 After=network.target
 
 [Service]
-User=$USER
-ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source ~/ros2_ws/install/setup.bash && ros2 launch ros_web_controller web_control.launch.py'
+User=jetson
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/jetson/ros2_ws/install/setup.bash && ros2 launch ros_web_controller web_control.launch.py'
 Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -164,78 +145,121 @@ sudo systemctl enable --now ros_web.service
 
 ---
 
-## Controls
+## 4. 아키텍처
 
-| Input | Action |
-|-------|--------|
-| **Joystick** | Drag to control velocity |
-| **D-Pad** | Direction buttons |
-| **Keyboard** | WASD / Arrow keys |
-| **Space** | Emergency stop |
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Web Browser                             │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────────────┐ │
+│  │   Camera   │  │   LiDAR    │  │  Joystick / D-Pad / WASD   │ │
+│  └─────┬──────┘  └─────┬──────┘  └──────────────┬─────────────┘ │
+└────────┼───────────────┼────────────────────────┼───────────────┘
+         │               │                        │
+         └───────────────┴────────────────────────┘
+                         │ WebSocket :9090
+┌────────────────────────▼────────────────────────────────────────┐
+│                    Jetson Orin Nano                             │
+│  ┌──────────────────┐      ┌──────────────────────────────────┐ │
+│  │ HTTP Server :8080│      │      rosbridge_websocket :9090   │ │
+│  └──────────────────┘      └───────────────┬──────────────────┘ │
+│  ┌─────────────────────────────────────────▼──────────────────┐ │
+│  │                      ROS2 Humble                           │ │
+│  │   /cmd_vel (Twist)          ───────▶  Motor Driver         │ │
+│  │   /scan (LaserScan)         ◀───────  LiDAR Sensor         │ │
+│  │   /camera/image/compressed  ◀───────  Camera               │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Troubleshooting
+## 5. ROS2 토픽
+
+| 방향 | 토픽 | 타입 | 설명 |
+|------|------|------|------|
+| **Publish** | `/cmd_vel` | `geometry_msgs/Twist` | 속도 명령 |
+| **Subscribe** | `/scan` | `sensor_msgs/LaserScan` | LiDAR 데이터 |
+| **Subscribe** | `/camera/image/compressed` | `sensor_msgs/CompressedImage` | 카메라 |
+
+---
+
+## 6. 조작법
+
+| 입력 | 동작 |
+|------|------|
+| **조이스틱** | 드래그하여 속도 제어 |
+| **D-Pad** | 방향 버튼 |
+| **키보드** | WASD / 화살표 |
+| **스페이스** | 긴급 정지 |
+
+---
+
+## 7. 문제 해결
 
 ```bash
-# Check nodes
-ros2 node list  # Should show: /web_server, /rosbridge_websocket
+# 노드 확인
+ros2 node list  # /web_server, /rosbridge_websocket 표시되어야 함
 
-# Check ports
+# 포트 확인
 ss -tlnp | grep -E '8080|9090'
 
-# Open firewall
+# 방화벽 열기
 sudo ufw allow 8080 && sudo ufw allow 9090
 
-# Camera permission
+# 카메라 권한
 sudo usermod -aG video $USER && reboot
 
-# Memory issue during build
+# 빌드 메모리 부족 시
 colcon build --executor sequential
 ```
 
 ---
 
-## Package Structure
+## 8. 오프라인 설치
 
-```
-ros-websocket/
-├── launch/web_control.launch.py    # Main launch file
-├── ros_web_controller/web_server.py # HTTP server
-├── web/
-│   ├── index.html                  # Web UI
-│   ├── lib/roslib.min.js           # roslibjs (offline)
-│   └── img/keti.png                # Logo
-├── scripts/
-│   ├── install_dependencies.sh     # Download deps (run with internet)
-│   └── install_offline.sh          # Install offline
-└── docs/index.html                 # GitHub Pages demo
-```
-
----
-
-## Offline Installation
-
-인터넷이 되는 환경에서 먼저 의존성 다운로드:
+인터넷 없는 환경용:
 
 ```bash
-# 1. 인터넷 되는 PC에서
-cd ~/ros2_ws/src/ros-websocket
+# 1. 인터넷 되는 PC에서 의존성 다운로드
 ./scripts/install_dependencies.sh
 
-# 2. ~/ros_web_deps 폴더를 USB로 Jetson에 복사
+# 2. ~/ros_web_deps/ 폴더를 USB로 Jetson에 복사
 
 # 3. Jetson에서 오프라인 설치
 ./scripts/install_offline.sh
 ```
 
-**필수 패키지 (미리 설치 권장):**
-- `ros-humble-rosbridge-server` - WebSocket 통신
-- `ros-humble-usb-cam` 또는 `ros-humble-v4l2-camera` - 카메라
-- Python: `tornado`, `bson`
+---
+
+## 9. 파일 구조
+
+```
+ros-websocket/
+├── launch/web_control.launch.py     # 런치 파일
+├── ros_web_controller/
+│   └── web_server.py                # HTTP 서버
+├── web/
+│   ├── index.html                   # 웹 UI
+│   ├── lib/roslib.min.js            # roslibjs (오프라인)
+│   └── img/keti.png                 # 로고
+├── scripts/
+│   ├── install_dependencies.sh      # 의존성 다운로드
+│   └── install_offline.sh           # 오프라인 설치
+└── docs/                            # GitHub Pages 데모
+```
+
+---
+
+## 필수 패키지
+
+| 패키지 | 용도 | 설치 |
+|--------|------|------|
+| `ros-humble-rosbridge-server` | WebSocket 통신 | `sudo apt install ros-humble-rosbridge-server` |
+| `ros-humble-usb-cam` | USB 카메라 | `sudo apt install ros-humble-usb-cam` |
+| `ros-humble-v4l2-camera` | CSI 카메라 | `sudo apt install ros-humble-v4l2-camera` |
 
 ---
 
 ## License
 
-MIT
+MIT License - KETI
