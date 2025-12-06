@@ -658,9 +658,12 @@
                         </div>
                         <div class="ai-controls">
                             <button class="ai-btn" id="btnDetection" onclick="toggleAI('detection')">Object Detection</button>
-                            <button class="ai-btn" id="btnTracking" onclick="toggleAI('tracking')">Tracking</button>
+                            <button class="ai-btn" id="btnTracking" onclick="toggleAI('tracking')">Person Tracking</button>
                         </div>
-                        <div class="ai-status" id="aiStatus">AI: Not loaded</div>
+                        <div class="ai-status" id="aiStatus">AI: Click to load</div>
+                        <div class="latency-info" id="cameraInfo">
+                            <strong>CSI:</strong> Use /image_raw/compressed or /camera/image/compressed
+                        </div>
                     </div>
                 </div>
 
@@ -801,8 +804,9 @@
         let cocoModel = null;
         let aiMode = null; // 'detection', 'tracking', null
         let isAIRunning = false;
-        let trackedObjects = [];
         let detectionCanvas, detectionCtx;
+        const AI_CONFIDENCE = 0.5; // 50% minimum confidence
+        const AI_INTERVAL = 150; // ms between detections
 
         const CMD_RATE = 50; // 20Hz
 
@@ -818,6 +822,7 @@
             maxLinearVal: $('maxLinearVal'), maxAngularVal: $('maxAngularVal'),
             cameraImage: $('cameraImage'), cameraPlaceholder: $('cameraPlaceholder'),
             cameraTopic: $('cameraTopic'), cameraBtn: $('cameraBtn'), cameraFps: $('cameraFps'),
+            cameraInfo: $('cameraInfo'),
             detectionCanvas: $('detectionCanvas'), detectionCount: $('detectionCount'),
             aiStatus: $('aiStatus'), btnDetection: $('btnDetection'), btnTracking: $('btnTracking'),
             lidarCanvas: $('lidarCanvas'), lidarTopic: $('lidarTopic'), lidarBtn: $('lidarBtn'),
@@ -897,98 +902,130 @@
 
             const img = el.cameraImage;
             if (img.style.display === 'none' || !img.complete || img.naturalWidth === 0) {
-                requestAnimationFrame(runDetection);
+                setTimeout(runDetection, 100);
                 return;
             }
 
             try {
-                // Resize canvas to match image
+                // Resize canvas to match container
                 const container = img.parentElement;
                 detectionCanvas.width = container.clientWidth;
                 detectionCanvas.height = container.clientHeight;
 
-                const predictions = await cocoModel.detect(img);
+                const allPredictions = await cocoModel.detect(img);
+                // Filter by confidence
+                const predictions = allPredictions.filter(p => p.score >= AI_CONFIDENCE);
 
-                // Clear and draw
+                // Clear canvas
                 detectionCtx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
 
-                // Scale factors
+                // Calculate scale to fit image in container
                 const scaleX = detectionCanvas.width / img.naturalWidth;
                 const scaleY = detectionCanvas.height / img.naturalHeight;
                 const scale = Math.min(scaleX, scaleY);
                 const offsetX = (detectionCanvas.width - img.naturalWidth * scale) / 2;
                 const offsetY = (detectionCanvas.height - img.naturalHeight * scale) / 2;
 
-                predictions.forEach((pred, i) => {
+                // Colors by class
+                const colors = {
+                    person: '#ef4444',
+                    car: '#3b82f6', truck: '#3b82f6', bus: '#3b82f6',
+                    bicycle: '#22c55e', motorcycle: '#22c55e',
+                    dog: '#f59e0b', cat: '#f59e0b', bird: '#f59e0b',
+                    default: '#8b5cf6'
+                };
+
+                // Tracking state
+                let trackedPerson = null;
+
+                predictions.forEach(pred => {
                     const [x, y, w, h] = pred.bbox;
                     const sx = x * scale + offsetX;
                     const sy = y * scale + offsetY;
                     const sw = w * scale;
                     const sh = h * scale;
-
-                    // Box color based on class
-                    const colors = {
-                        person: '#ef4444',
-                        car: '#3b82f6',
-                        truck: '#3b82f6',
-                        bicycle: '#22c55e',
-                        dog: '#f59e0b',
-                        cat: '#f59e0b',
-                        default: '#8b5cf6'
-                    };
                     const color = colors[pred.class] || colors.default;
 
-                    // Draw box
+                    // Draw bounding box
                     detectionCtx.strokeStyle = color;
                     detectionCtx.lineWidth = 2;
                     detectionCtx.strokeRect(sx, sy, sw, sh);
 
-                    // Draw label
+                    // Draw label background
                     const label = `${pred.class} ${Math.round(pred.score * 100)}%`;
-                    detectionCtx.font = '12px Inter, sans-serif';
+                    detectionCtx.font = 'bold 11px sans-serif';
                     const textW = detectionCtx.measureText(label).width + 8;
                     detectionCtx.fillStyle = color;
-                    detectionCtx.fillRect(sx, sy - 20, textW, 20);
+                    detectionCtx.fillRect(sx, sy - 18, textW, 18);
                     detectionCtx.fillStyle = '#fff';
-                    detectionCtx.fillText(label, sx + 4, sy - 6);
+                    detectionCtx.fillText(label, sx + 4, sy - 5);
 
-                    // Tracking mode: draw center point
-                    if (aiMode === 'tracking') {
-                        const cx = sx + sw / 2;
-                        const cy = sy + sh / 2;
-                        detectionCtx.beginPath();
-                        detectionCtx.arc(cx, cy, 4, 0, Math.PI * 2);
-                        detectionCtx.fillStyle = color;
-                        detectionCtx.fill();
+                    // Track largest person
+                    if (aiMode === 'tracking' && pred.class === 'person') {
+                        if (!trackedPerson || (w * h > trackedPerson.bbox[2] * trackedPerson.bbox[3])) {
+                            trackedPerson = pred;
+                        }
                     }
                 });
 
                 el.detectionCount.textContent = `${predictions.length} object${predictions.length !== 1 ? 's' : ''}`;
 
-                // Tracking: follow largest person
-                if (aiMode === 'tracking') {
-                    const persons = predictions.filter(p => p.class === 'person');
-                    if (persons.length > 0) {
-                        const largest = persons.reduce((a, b) =>
-                            (a.bbox[2] * a.bbox[3] > b.bbox[2] * b.bbox[3]) ? a : b
-                        );
-                        const [x, y, w, h] = largest.bbox;
-                        const centerX = (x + w / 2) / img.naturalWidth;
-                        // Auto-rotate towards person (0.5 = center)
-                        const error = 0.5 - centerX;
-                        if (Math.abs(error) > 0.1 && connected) {
-                            const ang = error * maxAngular * 0.5;
-                            sendVel(0, ang);
-                        }
+                // Person tracking
+                if (aiMode === 'tracking' && trackedPerson) {
+                    const [x, y, w, h] = trackedPerson.bbox;
+                    const sx = x * scale + offsetX;
+                    const sy = y * scale + offsetY;
+                    const sw = w * scale;
+                    const sh = h * scale;
+                    const centerX = sx + sw / 2;
+                    const centerY = sy + sh / 2;
+
+                    // Draw tracking crosshair
+                    detectionCtx.strokeStyle = '#ef4444';
+                    detectionCtx.lineWidth = 2;
+                    detectionCtx.beginPath();
+                    detectionCtx.moveTo(centerX - 15, centerY);
+                    detectionCtx.lineTo(centerX + 15, centerY);
+                    detectionCtx.moveTo(centerX, centerY - 15);
+                    detectionCtx.lineTo(centerX, centerY + 15);
+                    detectionCtx.stroke();
+
+                    // Draw target circle
+                    detectionCtx.beginPath();
+                    detectionCtx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+                    detectionCtx.stroke();
+
+                    // Calculate steering
+                    const imgCenterX = (x + w / 2) / img.naturalWidth;
+                    const error = 0.5 - imgCenterX; // positive = person is on left
+
+                    // Draw center line
+                    detectionCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    detectionCtx.setLineDash([5, 5]);
+                    detectionCtx.beginPath();
+                    detectionCtx.moveTo(detectionCanvas.width / 2, 0);
+                    detectionCtx.lineTo(detectionCanvas.width / 2, detectionCanvas.height);
+                    detectionCtx.stroke();
+                    detectionCtx.setLineDash([]);
+
+                    // Rotate towards person if off-center
+                    if (Math.abs(error) > 0.08 && connected) {
+                        const ang = error * maxAngular * 0.6;
+                        sendVel(0, ang);
+                        el.detectionCount.textContent += ` | Tracking`;
+                    } else {
+                        el.detectionCount.textContent += ` | Centered`;
                     }
+                } else if (aiMode === 'tracking') {
+                    el.detectionCount.textContent = 'No person detected';
                 }
 
             } catch(e) {
                 console.error('[AI] Detection error:', e);
             }
 
-            // Continue loop (~10 fps for AI)
-            setTimeout(() => requestAnimationFrame(runDetection), 100);
+            // Continue detection loop
+            setTimeout(runDetection, AI_INTERVAL);
         }
 
         function clearDetectionCanvas() {
