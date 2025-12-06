@@ -211,6 +211,15 @@
             object-fit: contain;
         }
 
+        .video-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
         .video-placeholder {
             color: var(--text-muted);
             text-align: center;
@@ -231,6 +240,53 @@
         }
 
         .topic-input .input { flex: 1; }
+
+        /* AI Detection */
+        .ai-controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ai-btn {
+            padding: 6px 12px;
+            font-size: 11px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ai-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .ai-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .ai-status {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .ai-status.loading { color: var(--warning); }
+        .ai-status.ready { color: var(--success); }
+
+        .detection-count {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
 
         /* LiDAR */
         .lidar-container {
@@ -592,15 +648,19 @@
                                 </svg>
                                 <div>No camera feed</div>
                             </div>
-                            <img id="cameraImage" style="display:none" alt="Camera">
+                            <img id="cameraImage" style="display:none" alt="Camera" crossorigin="anonymous">
+                            <canvas id="detectionCanvas"></canvas>
+                            <div class="detection-count" id="detectionCount" style="display:none">0 objects</div>
                         </div>
                         <div class="topic-input">
-                            <input type="text" class="input" id="cameraTopic" placeholder="/camera/image/compressed">
+                            <input type="text" class="input" id="cameraTopic" value="/image_raw/compressed" placeholder="/image_raw/compressed">
                             <button class="btn btn-sm" id="cameraBtn" onclick="toggleCamera()">Start</button>
                         </div>
-                        <div class="latency-info" id="cameraInfo">
-                            <strong>Tip:</strong> Use compressed topic for lower latency. MJPEG mode requires web_video_server.
+                        <div class="ai-controls">
+                            <button class="ai-btn" id="btnDetection" onclick="toggleAI('detection')">Object Detection</button>
+                            <button class="ai-btn" id="btnTracking" onclick="toggleAI('tracking')">Tracking</button>
                         </div>
+                        <div class="ai-status" id="aiStatus">AI: Not loaded</div>
                     </div>
                 </div>
 
@@ -722,6 +782,8 @@
     </div>
 
     <script src="lib/roslib.min.js"></script>
+    <script src="lib/tf.min.js"></script>
+    <script src="lib/coco-ssd.min.js"></script>
     <script>
     (function() {
         'use strict';
@@ -734,6 +796,13 @@
         let lastCmdTime = 0;
         let streamMode = 'rosbridge'; // or 'mjpeg'
         let mjpegUrl = '';
+
+        // AI State
+        let cocoModel = null;
+        let aiMode = null; // 'detection', 'tracking', null
+        let isAIRunning = false;
+        let trackedObjects = [];
+        let detectionCanvas, detectionCtx;
 
         const CMD_RATE = 50; // 20Hz
 
@@ -749,7 +818,8 @@
             maxLinearVal: $('maxLinearVal'), maxAngularVal: $('maxAngularVal'),
             cameraImage: $('cameraImage'), cameraPlaceholder: $('cameraPlaceholder'),
             cameraTopic: $('cameraTopic'), cameraBtn: $('cameraBtn'), cameraFps: $('cameraFps'),
-            cameraInfo: $('cameraInfo'),
+            detectionCanvas: $('detectionCanvas'), detectionCount: $('detectionCount'),
+            aiStatus: $('aiStatus'), btnDetection: $('btnDetection'), btnTracking: $('btnTracking'),
             lidarCanvas: $('lidarCanvas'), lidarTopic: $('lidarTopic'), lidarBtn: $('lidarBtn'),
             lidarFps: $('lidarFps'), lidarPoints: $('lidarPoints'), lidarRange: $('lidarRange'),
             topicList: $('topicList'),
@@ -766,10 +836,165 @@
             initKeyboard();
             drawLidarBg();
             initFps();
+            initAI();
             autoDetect();
 
             const saved = localStorage.getItem('robotIP');
             if (saved) el.robotIP.value = saved;
+        }
+
+        // AI Detection
+        function initAI() {
+            detectionCanvas = el.detectionCanvas;
+            detectionCtx = detectionCanvas.getContext('2d');
+            el.aiStatus.textContent = 'AI: Click to load';
+        }
+
+        window.toggleAI = async function(mode) {
+            if (aiMode === mode) {
+                // Turn off
+                aiMode = null;
+                isAIRunning = false;
+                el.btnDetection.classList.remove('active');
+                el.btnTracking.classList.remove('active');
+                el.detectionCount.style.display = 'none';
+                clearDetectionCanvas();
+                el.aiStatus.textContent = 'AI: Off';
+                el.aiStatus.className = 'ai-status';
+                return;
+            }
+
+            // Load model if needed
+            if (!cocoModel) {
+                el.aiStatus.textContent = 'AI: Loading model...';
+                el.aiStatus.className = 'ai-status loading';
+                try {
+                    cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+                    el.aiStatus.textContent = 'AI: Ready';
+                    el.aiStatus.className = 'ai-status ready';
+                    console.log('[AI] COCO-SSD model loaded');
+                } catch(e) {
+                    console.error('[AI] Model load failed:', e);
+                    el.aiStatus.textContent = 'AI: Load failed';
+                    el.aiStatus.className = 'ai-status';
+                    return;
+                }
+            }
+
+            aiMode = mode;
+            el.btnDetection.classList.toggle('active', mode === 'detection');
+            el.btnTracking.classList.toggle('active', mode === 'tracking');
+            el.detectionCount.style.display = 'block';
+
+            if (!isAIRunning) {
+                isAIRunning = true;
+                runDetection();
+            }
+        };
+
+        async function runDetection() {
+            if (!isAIRunning || !aiMode || !cocoModel) return;
+
+            const img = el.cameraImage;
+            if (img.style.display === 'none' || !img.complete || img.naturalWidth === 0) {
+                requestAnimationFrame(runDetection);
+                return;
+            }
+
+            try {
+                // Resize canvas to match image
+                const container = img.parentElement;
+                detectionCanvas.width = container.clientWidth;
+                detectionCanvas.height = container.clientHeight;
+
+                const predictions = await cocoModel.detect(img);
+
+                // Clear and draw
+                detectionCtx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
+
+                // Scale factors
+                const scaleX = detectionCanvas.width / img.naturalWidth;
+                const scaleY = detectionCanvas.height / img.naturalHeight;
+                const scale = Math.min(scaleX, scaleY);
+                const offsetX = (detectionCanvas.width - img.naturalWidth * scale) / 2;
+                const offsetY = (detectionCanvas.height - img.naturalHeight * scale) / 2;
+
+                predictions.forEach((pred, i) => {
+                    const [x, y, w, h] = pred.bbox;
+                    const sx = x * scale + offsetX;
+                    const sy = y * scale + offsetY;
+                    const sw = w * scale;
+                    const sh = h * scale;
+
+                    // Box color based on class
+                    const colors = {
+                        person: '#ef4444',
+                        car: '#3b82f6',
+                        truck: '#3b82f6',
+                        bicycle: '#22c55e',
+                        dog: '#f59e0b',
+                        cat: '#f59e0b',
+                        default: '#8b5cf6'
+                    };
+                    const color = colors[pred.class] || colors.default;
+
+                    // Draw box
+                    detectionCtx.strokeStyle = color;
+                    detectionCtx.lineWidth = 2;
+                    detectionCtx.strokeRect(sx, sy, sw, sh);
+
+                    // Draw label
+                    const label = `${pred.class} ${Math.round(pred.score * 100)}%`;
+                    detectionCtx.font = '12px Inter, sans-serif';
+                    const textW = detectionCtx.measureText(label).width + 8;
+                    detectionCtx.fillStyle = color;
+                    detectionCtx.fillRect(sx, sy - 20, textW, 20);
+                    detectionCtx.fillStyle = '#fff';
+                    detectionCtx.fillText(label, sx + 4, sy - 6);
+
+                    // Tracking mode: draw center point
+                    if (aiMode === 'tracking') {
+                        const cx = sx + sw / 2;
+                        const cy = sy + sh / 2;
+                        detectionCtx.beginPath();
+                        detectionCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+                        detectionCtx.fillStyle = color;
+                        detectionCtx.fill();
+                    }
+                });
+
+                el.detectionCount.textContent = `${predictions.length} object${predictions.length !== 1 ? 's' : ''}`;
+
+                // Tracking: follow largest person
+                if (aiMode === 'tracking') {
+                    const persons = predictions.filter(p => p.class === 'person');
+                    if (persons.length > 0) {
+                        const largest = persons.reduce((a, b) =>
+                            (a.bbox[2] * a.bbox[3] > b.bbox[2] * b.bbox[3]) ? a : b
+                        );
+                        const [x, y, w, h] = largest.bbox;
+                        const centerX = (x + w / 2) / img.naturalWidth;
+                        // Auto-rotate towards person (0.5 = center)
+                        const error = 0.5 - centerX;
+                        if (Math.abs(error) > 0.1 && connected) {
+                            const ang = error * maxAngular * 0.5;
+                            sendVel(0, ang);
+                        }
+                    }
+                }
+
+            } catch(e) {
+                console.error('[AI] Detection error:', e);
+            }
+
+            // Continue loop (~10 fps for AI)
+            setTimeout(() => requestAnimationFrame(runDetection), 100);
+        }
+
+        function clearDetectionCanvas() {
+            if (detectionCtx) {
+                detectionCtx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
+            }
         }
 
         function autoDetect() {

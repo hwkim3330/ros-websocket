@@ -96,20 +96,26 @@ ros2 launch ros_web_controller web_control.launch.py
 
 ---
 
-## 2. 카메라 설정
+## 2. 카메라 설정 (CSI)
 
-### USB 카메라
+### CSI 카메라 (IMX219) - 기본
+```bash
+# v4l2_camera 설치
+sudo apt install -y ros-humble-v4l2-camera ros-humble-image-transport-plugins
+
+# 실행
+ros2 run v4l2_camera v4l2_camera_node --ros-args \
+  -p video_device:=/dev/video0 \
+  -p image_size:=[640,480] \
+  -p camera_frame_id:=camera
+```
+
+### USB 카메라 (대안)
 ```bash
 sudo apt install -y ros-humble-usb-cam
 ros2 run usb_cam usb_cam_node_exe --ros-args \
   -p video_device:=/dev/video0 \
   -p image_width:=640 -p image_height:=480 -p framerate:=15.0
-```
-
-### CSI 카메라 (IMX219)
-```bash
-sudo apt install -y ros-humble-v4l2-camera
-ros2 run v4l2_camera v4l2_camera_node --ros-args -p video_device:=/dev/video0
 ```
 
 ### MJPEG 모드 (저지연)
@@ -118,6 +124,24 @@ sudo apt install -y ros-humble-web-video-server
 ros2 run web_video_server web_video_server
 # 웹 UI에서 MJPEG 모드 선택
 ```
+
+---
+
+## 2-1. AI 기능 (TensorFlow.js)
+
+웹 UI에 AI 객체 감지 기능 내장:
+
+| 기능 | 설명 |
+|------|------|
+| **Object Detection** | COCO-SSD 모델로 80가지 객체 실시간 감지 |
+| **Tracking** | 사람 추적 모드 - 자동으로 사람 방향으로 회전 |
+
+**사용법:**
+1. 카메라 시작
+2. "Object Detection" 또는 "Tracking" 버튼 클릭
+3. 첫 실행 시 모델 로드 (수 초 소요)
+
+**지원 객체:** person, car, truck, bicycle, dog, cat, chair, tv, laptop, cell phone 등 80종
 
 ---
 
@@ -235,12 +259,16 @@ colcon build --executor sequential
 
 ```
 ros-websocket/
+├── install.sh                       # 원라인 설치 스크립트
 ├── launch/web_control.launch.py     # 런치 파일
 ├── ros_web_controller/
 │   └── web_server.py                # HTTP 서버
 ├── web/
-│   ├── index.html                   # 웹 UI
-│   ├── lib/roslib.min.js            # roslibjs (오프라인)
+│   ├── index.html                   # 웹 UI (AI 포함)
+│   ├── lib/
+│   │   ├── roslib.min.js            # roslibjs
+│   │   ├── tf.min.js                # TensorFlow.js
+│   │   └── coco-ssd.min.js          # 객체 감지 모델
 │   └── img/keti.png                 # 로고
 ├── scripts/
 │   ├── install_dependencies.sh      # 의존성 다운로드
